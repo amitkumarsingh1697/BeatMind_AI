@@ -19,6 +19,7 @@ SHEETS = [
     ("Compliance", "../05-compliance/compliance-register.csv"),
     ("RTM", "../07-quality/rtm.csv"),
     ("Entitlements", "../02-product/entitlement-matrix.csv"),
+    ("Backlog", "../09-delivery/product-backlog.csv"),
 ]
 WEIGHTS = [0.20, 0.15, 0.20, 0.10, 0.10, 0.10, 0.15]
 HEADER_FILL = PatternFill("solid", fgColor="1F3A5F")
