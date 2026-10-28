@@ -2,7 +2,7 @@
 
 | Item | Value |
 | --- | --- |
-| Package version | 0.1 (Batch 1: foundation) |
+| Package version | 0.2 (Batch 1 foundation; Batch 2 security, compliance, quality, UX) |
 | Date | 2026-10-28 |
 | Owner | Amit Kumar Singh (founder) |
 | Prepared with | Claude (AI assistant). Everything here is a draft for founder review. Legal, tax and financial content needs sign-off from a qualified professional before anyone relies on it. |
@@ -58,17 +58,17 @@ Rules this package follows: no invented customers, revenue, traction, measuremen
 
 | # | Deliverable | Batch | Status | Location |
 | --- | --- | --- | --- | --- |
-| 1 | Product requirements document (v2.0) | 1 | Draft | [02-product/prd.md](02-product/prd.md) |
+| 1 | Product requirements document (v2.1) and entitlement matrix | 1, 2 | Draft | [02-product/prd.md](02-product/prd.md), [entitlement-matrix.csv](02-product/entitlement-matrix.csv) |
 | 2 | Technical design document (v2.0) with ADRs | 1 | Draft | [03-architecture/tdd.md](03-architecture/tdd.md) |
 | 3 | Pitch deck (rewrite) | 4 | Not started | |
 | 4 | Market, launch-market and competitor analysis | 1 | Draft | [01-market/market-and-competitor-analysis.md](01-market/market-and-competitor-analysis.md) |
 | 5 | Scrum plan (epics, stories, sprints) | 3 | Not started | |
-| 6 | Compliance and regulatory register | 2 | Not started | |
-| 7 | Testing strategy and requirements traceability matrix | 2 | Not started | |
+| 6 | Compliance and regulatory register | 2 | Draft | [05-compliance/](05-compliance/README.md) |
+| 7 | Testing strategy and requirements traceability matrix | 2 | Draft | [07-quality/testing-strategy.md](07-quality/testing-strategy.md), [rtm.csv](07-quality/rtm.csv) |
 | 8 | Validation plan (user, market, model quality) | 3 | Not started | |
-| 9 | Security architecture and threat model | 2 | Not started | |
+| 9 | Security architecture and threat model | 2 | Draft | [04-security/threat-model.md](04-security/threat-model.md) |
 | 10 | SRE handbook (SLOs, runbooks, incident process) | 3 | Not started | |
-| 11 | UX and accessibility specification | 2 | Not started | |
+| 11 | UX and accessibility specification | 2 | Draft | [08-ux/ux-accessibility-spec.md](08-ux/ux-accessibility-spec.md) |
 | 12 | Go-to-market plan | 4 | Not started | |
 | 13 | Pricing (purchasing-power parity) and financial model | 4 | Not started (pricing principles in PRD section 9) | |
 | 14 | Legal pack: terms of service, licence and rights certificate, privacy policy, acceptable use, takedown policy | 4 | Not started | |
@@ -81,8 +81,9 @@ Rules this package follows: no invented customers, revenue, traction, measuremen
 | 21 | Source register | 1 | Draft | [registers/sources.csv](registers/sources.csv) |
 | 22 | Brand and name research | 1 | Draft | [01-market/brand-name-research.md](01-market/brand-name-research.md) |
 | 23 | Glossary | 1 | Draft | [registers/glossary.md](registers/glossary.md) |
-| 24 | Data protection impact assessment | 2 | Not started | |
-| 25 | Model cards and AI model register | 2 | Not started | |
+| 24 | Data protection impact assessment | 2 | Draft | [05-compliance/dpia.md](05-compliance/dpia.md) |
+| 25 | Model cards and AI model register | 2 | Draft | [06-ai/model-register.md](06-ai/model-register.md) |
+| 28 | Review findings register (BUG-001 to BUG-090) | 2 | Draft | [registers/review-findings.csv](registers/review-findings.csv) |
 | 26 | GA readiness report | 5 | Not started | |
 | 27 | Investor readiness assessment | 5 | Not started | |
 

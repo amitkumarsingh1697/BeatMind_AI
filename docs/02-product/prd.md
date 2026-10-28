@@ -2,7 +2,7 @@
 
 | Item | Value |
 | --- | --- |
-| Version | 2.0 (supersedes v1.0 of 2026-10-22, SRC-002) |
+| Version | 2.1 (2.0 of 2026-10-28 plus review-finding fixes; supersedes v1.0, SRC-002) |
 | Date | 2026-10-28 |
 | Owner | Amit Kumar Singh (founder); drafted by Claude as product manager |
 | Status | Draft for founder review |
@@ -111,17 +111,18 @@ Priority: P0 must ship in the phase, P1 should ship, P2 may ship. The Scrum Mast
 
 ## 6. Functional requirements (MVP)
 
-Each requirement is testable; test cases arrive in Batch 2 (RTM).
+Each requirement is testable; test cases are in the [RTM](../07-quality/rtm.csv). Plan entitlements are in the [entitlement matrix](entitlement-matrix.csv). Review findings are tracked in [review-findings.csv](../registers/review-findings.csv).
 
 ### 6.1 Creation
 
 - **REQ-F-01** The system must generate a song with vocals from a text description of up to 500 characters in under 60 seconds at p95 (beta target).
-- **REQ-F-02** Custom mode must accept lyrics up to 3,000 characters in Hindi (Devanagari), Hinglish (Latin script) or English, a style description up to 500 characters, a vocal type and an instrumental toggle.
+- **REQ-F-02** Custom mode must accept lyrics up to 3,000 characters (grapheme clusters, see REQ-F-08) in Hindi (Devanagari), Hinglish (Latin script) or English, a style description up to 500 characters, a vocal type and an instrumental toggle.
 - **REQ-F-03** The lyric writer must produce lyrics with sections (verse, chorus, bridge) in the chosen language from a topic and mood.
 - **REQ-F-04** Beat mode must accept genre, BPM (60 to 200), key and instruments to include or exclude, and produce an instrumental.
 - **REQ-F-05** Each request must return two takes. The user can keep, regenerate or discard each.
 - **REQ-F-06** Song length must be selectable from 30 seconds to 4 minutes in MVP.
 - **REQ-F-07** If a language has not passed gate G1, the interface must mark it "experimental" or hide it.
+- **REQ-F-08** All text input must be stored as UTF-8 in Unicode NFC form; length limits count grapheme clusters, not bytes or code points; titles are stored in the original script plus a Latin transliteration and a BCP 47 language tag; certificate PDFs embed fonts for every supported script (BUG-082, BUG-090).
 
 ### 6.2 Editing (P1)
 
@@ -157,9 +158,13 @@ Each requirement is testable; test cases arrive in Batch 2 (RTM).
 - **REQ-F-50** Prompts and lyrics naming real artists or asking for their voice or style must be blocked with an explanation.
 - **REQ-F-51** Lyrics must be screened for hate, sexual content involving minors, and threats, in Hindi, Hinglish and English.
 - **REQ-F-52** Generated audio must be checked against a fingerprint index of known recordings where available; close matches are withheld and logged (RISK-001).
-- **REQ-F-53** Users must be 13 or older; commercial licences and paid ownership require 18 or older or verified parental consent where the law requires it (DPDP, RISK-014).
+- **REQ-F-53** In the beta, users must be 18 or older, confirmed by a declared date of birth at sign-up. India's DPDP Act requires verifiable parental consent to process a child's data, and a child is anyone under 18 (COMP-IN-04); under-18 access waits for a parental-consent flow. Other markets' age rules are set in the compliance register (BUG-073).
 - **REQ-F-54** Takedown requests must be acknowledged within 24 hours and acted on within the legal deadline (3 hours for Indian government or court orders, SRC-117).
-- **REQ-F-55** The beta must enforce per-account daily generation caps set by an admin.
+- **REQ-F-55** The beta must enforce per-account daily generation caps set by an admin, and per-plan concurrent job limits (entitlement matrix).
+- **REQ-F-56** Credits must be refunded automatically for failed, timed-out and withheld takes, and the refund shown in the credit ledger (BUG-028).
+- **REQ-F-57** Ownership of paid-plan songs vests when the payment for that billing period settles. A successful chargeback or payment reversal returns the songs created in that period to the free-plan rights state and disables their certificates (BUG-043).
+- **REQ-F-58** After cancellation, users keep access to and downloads of songs they own; new creation follows the free plan (BUG-045).
+- **REQ-F-59** Users can appeal a block, a withheld take or a takedown; appeals go to a human review queue with a 72-hour response target (BUG-066).
 
 ## 7. Key user flows
 

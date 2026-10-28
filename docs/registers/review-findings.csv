@@ -1,0 +1,91 @@
+id,review_ref,finding,review_severity,status_after_v2,resolution_or_next_step,linked_items
+BUG-001,C1,Free-plan download rule conflicts across documents,High,Resolved,Founder decision DEC-008: MP3 for personal use plus 5 commercial songs a month,REQ-F-20; REQ-F-21
+BUG-002,C2,Hum input entitlement on Free,Medium,Deferred,Melody input moved to Phase 2,FEAT-25
+BUG-003,C3,MIDI entitlement by plan,High,Deferred,MIDI export moved to Phase 2,FEAT-26
+BUG-004,C4,Stem count by plan,High,Resolved,4 separated stems on paid plans,REQ-F-23; entitlement-matrix.csv
+BUG-005,C5,Stem taxonomy conflicts,Launch-blocking,Resolved,Stem set fixed by the separation model: vocals; drums; bass; other,REQ-F-23; TDD 3
+BUG-006,C6,Native versus separated stems claim,Launch-blocking,Resolved,Stems are separated after generation and described that way; deck rewrite must not claim native stems,FEAT-07; Batch 4 deck
+BUG-007,C7,Deck shows lock accuracy that was never measured,High,Open,Measure BPM and key adherence of the model; publish targets only after measurement,TC-REQ-F-04-02
+BUG-008,C8,Content ID safelist tier conflict,Medium,Resolved,Safelist dropped; replaced by certificate and dispute pack,FEAT-11
+BUG-009,C9,Content ID safelist marketed as shipped,Launch-blocking,Resolved,No claim-clearance promise anywhere (REQ-F-26),FEAT-11; REQ-F-26
+BUG-010,C10,Ownership wording versus deliverable rights,Launch-blocking,Partly resolved,DEC-009 sets user ownership of whatever rights BeatMind holds; certificate wording needs counsel sign-off,REQ-F-22; REQ-F-26; Batch 4 legal pack
+BUG-011,C11,Song length by plan,Low,Resolved,30 s to 4 min for all plans in MVP,REQ-F-06
+BUG-012,C12,Studio plan timing,Medium,Resolved,Studio is Phase 2,PRD 9
+BUG-013,C13,Prices missing in deck,Medium,Open,Price bands in Batch 4 financial model,PRD 9; Batch 4
+BUG-014,C14,Launch wedge conflict,Medium,Resolved,Creators first; then artists; then producers,DEC-102
+BUG-015,C15,API timing conflict,Low,Resolved,Public API is Phase 3,FEAT-32
+BUG-016,C16,Two latency definitions,Low,Resolved,Single SLO: song playable within 60 s at p95 in beta,REQ-NFR-01
+BUG-017,C17,Voice verification called identity check,High,Deferred,Voice models removed from MVP,FEAT-30
+BUG-018,C18,Training data under licence only claim,High,Open,Claim must not appear; disclose open-model data risk,RISK-001; A-024
+BUG-019,F1.1,Rendered audio not verified against locks,High,Open,Post-generation check of tempo and key; retry or label mismatch,TC-REQ-F-04-02
+BUG-020,F1.2,No rule for conflicting inputs,Medium,Open,Input validation rules in API-001,REQ-F-04
+BUG-021,F1.3,Limited meters; no tempo or key changes,Medium,Deferred,Out of MVP scope,Phase 2 backlog
+BUG-022,F1.4,No Unicode normalisation or injection rules for prompts and lyrics,High,Open,NFC normalisation; strip zero-width and confusables before checks; prompt-injection guard for the lyric model,REQ-SEC-04
+BUG-023,F1.5,Lyric model may reproduce copyrighted lyrics,High,Open,Lyric similarity check against known lyrics where a lawful index exists; refuse known titles; log,REQ-F-52; TD-03
+BUG-024,F2.1,No failure states for poor hum recordings,High,Deferred,Hum input is Phase 2,FEAT-25
+BUG-025,F2.2,Transcription flattens Indian ornamentation,High,Deferred,Hum input is Phase 2,FEAT-25
+BUG-026,F2.3,Uploaded media parsed without sandboxing,High,Deferred,No uploads in MVP; sandbox required when added,FEAT-21; FEAT-25
+BUG-027,F2.4,Hummed copyrighted melody logged as human input,Launch-blocking,Deferred,Hum input is Phase 2,FEAT-25
+BUG-028,F3.1,No refund rules for failed or withheld takes,High,Open,Automatic credit refund for failed; timed-out or withheld takes,REQ-F-56
+BUG-029,F3.2,Final render may not sound like chosen draft,Launch-blocking,Resolved,MVP generates full takes with one model; no separate render,FEAT-05; TDD 3
+BUG-030,F3.3,Account farming of free generation,High,Open,Turnstile; device and payment fingerprints; daily caps; phone verification for free commercial licences,RISK-008; REQ-SEC-09
+BUG-031,F3.4,No concurrency limit per user,Medium,Open,Per-user concurrent job limit by plan,REQ-F-55
+BUG-032,F4.1,No measurable seam quality test,High,Open,Seam test with onset and spectral discontinuity thresholds,TC-REQ-F-10-02
+BUG-033,F4.2,Edits re-screen the whole take,Medium,Open,Screen only changed regions plus a context window,TDD 3
+BUG-034,F4.3,Unbounded take storage,Medium,Open,Per-plan storage quota and take limit per song,entitlement-matrix.csv
+BUG-035,F4.4,Lyric-line edit syllable changes,Medium,Deferred,Lyric-line edit not in MVP,Phase 2 backlog
+BUG-036,F5.1,Native stems unproven,Launch-blocking,Resolved,Separated stems only,FEAT-07
+BUG-037,F5.2,Stem groups cannot produce eight named stems,Launch-blocking,Resolved,Four stems,REQ-F-23
+BUG-038,F5.3,MIDI may not match audio,High,Deferred,MIDI in Phase 2,FEAT-26
+BUG-039,F5.4,Stem bleed not measured,Medium,Open,Disclose that separated stems can contain bleed; measure SDR on test set,TC-REQ-F-23-03
+BUG-040,F5.5,Layered watermarks on stems,Low,Open,Watermark only the mix and the export bundle manifest; record stems in ledger,ADR-010; TD-04
+BUG-041,F6.1,Certificate of ownership overstates rights,Launch-blocking,Partly resolved,Certificate states transfer of BeatMind's rights; never claims copyright exists,REQ-F-22; REQ-F-26
+BUG-042,F6.2,Licensor terms may restrict output use,Launch-blocking,Resolved for now,No licensors in Phase 1; model licences checked (C-02),ADR-007
+BUG-043,F6.3,Subscribe; bulk download; charge back,Launch-blocking,Open,Paid ownership vests only for songs created while payment settled; chargeback revokes ownership of songs created in the disputed period,REQ-F-57
+BUG-044,F6.4,Free-song upgrade has no price or rules,Medium,Open,Rule and price in Batch 4,REQ-F-24
+BUG-045,F6.5,Access after cancellation undefined,Medium,Open,Owned songs stay downloadable after cancellation (free-tier quotas apply to new creation),REQ-F-58
+BUG-046,F7.1,Authorship report certifies false human input,Launch-blocking,Open,Report says inputs are user-declared; no originality certification; terms make users warrant their inputs,REQ-F-31; Batch 4 legal pack
+BUG-047,F7.2,Single signing key; 24-hour anchoring window,High,Open,Key in managed KMS; rotation; hourly digest,REQ-SEC-07; ADR-010
+BUG-048,F7.3,Watermark not robust to adversarial removal,High,Open,Layered provenance; robustness test suite; never treat watermark absence as proof,TD-04
+BUG-049,F7.4,Watermark presence proves only partial use,High,Open,Verify page reports match coverage and take; certificate tied to the full file hash,REQ-F-32
+BUG-050,F7.5,Provenance retention versus erasure,Medium,Open,DPIA decision: keep pseudonymous ledger with legal-claims basis; counsel to confirm,dpia.md
+BUG-051,F8.1,Distributor acceptance of disclosure,High,Deferred,Release pipeline is Phase 2,FEAT-22
+BUG-052,F8.2,Verify page is a free oracle,High,Open,Rate limits; Turnstile; file size cap; coarse answers to anonymous users,REQ-SEC-10
+BUG-053,F8.3,Verify page leaks unreleased song metadata,Medium,Open,Show details only for public songs or to the certificate holder,REQ-F-32
+BUG-054,F9.1,No Content ID clearance lever,Launch-blocking,Resolved,No clearance promised; dispute pack only,FEAT-11
+BUG-055,F9.2,Channel OAuth scopes undefined,High,Deferred,No channel linking in MVP,Phase 2 backlog
+BUG-056,F9.3,Licence scope for networks and reuploads undefined,Medium,Open,Define in licence terms,Batch 4 legal pack
+BUG-057,F10.1,Voice verification can be spoofed,Launch-blocking,Deferred,Voice models removed from MVP,FEAT-30
+BUG-058,F10.2,Protected-voice registry undefined,High,Deferred,With FEAT-30,FEAT-30
+BUG-059,F10.3,Biometric consent mechanics,High,Deferred,With FEAT-30,FEAT-30
+BUG-060,F10.4,Deleted voice model breaks songs,Medium,Deferred,With FEAT-30,FEAT-30
+BUG-061,F10.5,Account takeover exposes voice,High,Deferred,With FEAT-30,FEAT-30
+BUG-062,F11.1,Upload fingerprinting evadable,Launch-blocking,Deferred,No uploads in MVP,FEAT-21
+BUG-063,F11.2,Similarity thresholds untuned,High,Open,Build labelled test set; set false-positive and false-negative targets before beta,TD-03; TC-REQ-F-52-01
+BUG-064,F11.3,Similarity index coverage too narrow,High,Open,Choose reference index source,TD-03
+BUG-065,F11.4,Moderation not multilingual,High,Open,Multilingual moderation incl. Devanagari and romanised Hindi; transliteration-aware artist list,REQ-F-51; REQ-SEC-04
+BUG-066,F11.5,No appeal path,Medium,Open,Appeal button and human review queue in admin,REQ-F-59
+BUG-067,F12.1,Insecure direct object references,Launch-blocking,Open,Owner-based authorisation on every resource; random non-sequential IDs; tests,REQ-SEC-02
+BUG-068,F12.2,Private links never expire,High,Open,Revocable share tokens; signed URLs expire in 15 minutes,REQ-SEC-03
+BUG-069,F12.3,Public page abuse,Medium,Open,Moderate titles and lyrics before publishing; link stripping; report button,REQ-F-50; REQ-F-51
+BUG-070,F12.4,Search assumes Latin text,Medium,Open,Unicode-aware search with transliteration,REQ-NFR-09
+BUG-071,F13.1,No entitlement matrix,Launch-blocking,Resolved,Entitlement matrix created,entitlement-matrix.csv
+BUG-072,F13.2,No user MFA,High,Open,Optional TOTP or passkey; required for admins,REQ-SEC-06
+BUG-073,F13.3,Age gate without verification; DPDP parental consent,High,Open,18+ only in India for beta; parental-consent flow before allowing under-18s,REQ-F-53
+BUG-074,F13.4,Card-only payments,High,Resolved,Razorpay with UPI in India,ADR-009
+BUG-075,F13.5,No fraud controls on credits,Medium,Open,Provider fraud tools; velocity limits,REQ-SEC-09
+BUG-076,F14.1,GPU time per job assumed,Launch-blocking,Open,Benchmark in Sprint 1; cost alert,A-025; REQ-NFR-07
+BUG-077,F14.2,GPU supply for scale-up assumed,High,Open,Multi-provider worker images; API fallback with cap,ADR-006; ADR-007
+BUG-078,F14.3,Fingerprint vendor rate limits,High,Open,Self-hosted fingerprinting; async screening queue,INT-08
+BUG-079,F14.4,Merkle root growth,Medium,Resolved,Per-song chains plus daily signed digest of changed songs only,ADR-010
+BUG-080,F14.5,No South Asia region,High,Resolved,India-first hosting region,TDD 1
+BUG-081,F14.6,No load shedding for verify and public pages,Medium,Open,Separate rate limits and CDN caching; shed verify before generation,REQ-SEC-10
+BUG-082,L1,Indic text length and normalisation,High,Open,Count grapheme clusters; store UTF-8 NFC; bidi support; embed fonts in PDFs,REQ-F-08
+BUG-083,L2,Moderation not multilingual,Launch-blocking,Open,Same as F11.4; native-speaker review queue,REQ-F-51
+BUG-084,L3,Singing pronunciation per language,High,Open,Language gate G1 per language,PRD 12
+BUG-085,L4,Western music theory assumptions,High,Deferred,Indic music engine in Phase 3 (U7),Phase 3 backlog
+BUG-086,L5,No regional training data,High,Open,Model choice and G1; licensed regional data after funding,RISK-003; FEAT-33
+BUG-087,L6,Cultural and legal content rules by market,High,Open,Per-market content policy reviewed by local counsel,compliance-register.csv
+BUG-088,L7,US-centric payments,High,Resolved,ADR-009 and PPP pricing,ADR-009; DEC-013
+BUG-089,L8,Lyric model quality per language,Medium,Open,Per-language lyric test,TD-01
+BUG-090,L9,Metadata needs scripts and transliteration,Medium,Open,Store title in original script plus transliteration and language code,REQ-F-08
