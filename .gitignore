@@ -1,0 +1,14 @@
+# Build and IDE
+target/
+node_modules/
+.next/
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+.DS_Store
+# Secrets: never commit
+.env
+.env.*
+*.pem
+*.key
