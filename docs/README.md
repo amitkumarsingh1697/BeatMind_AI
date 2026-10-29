@@ -2,7 +2,7 @@
 
 | Item | Value |
 | --- | --- |
-| Package version | 0.4 (Batches 1 to 4: foundation; security, compliance, quality, UX; delivery and operations; business, legal and investor) |
+| Package version | 0.5 (Batches 1 to 5 complete in draft) |
 | Date | 2026-10-28 |
 | Owner | Amit Kumar Singh (founder) |
 | Prepared with | Claude (AI assistant). Everything here is a draft for founder review. Legal, tax and financial content needs sign-off from a qualified professional before anyone relies on it. |
@@ -84,8 +84,8 @@ Rules this package follows: no invented customers, revenue, traction, measuremen
 | 24 | Data protection impact assessment | 2 | Draft | [05-compliance/dpia.md](05-compliance/dpia.md) |
 | 25 | Model cards and AI model register | 2 | Draft | [06-ai/model-register.md](06-ai/model-register.md) |
 | 28 | Review findings register (BUG-001 to BUG-090) | 2 | Draft | [registers/review-findings.csv](registers/review-findings.csv) |
-| 26 | GA readiness report | 5 | Not started | |
-| 27 | Investor readiness assessment | 5 | Not started | |
+| 26 | GA readiness report | 5 | Draft | [16-readiness/ga-readiness-report.md](16-readiness/ga-readiness-report.md) |
+| 27 | Investor readiness assessment | 5 | Draft | [16-readiness/investor-readiness-assessment.md](16-readiness/investor-readiness-assessment.md) |
 
 All registers are also combined in [registers/beatmind-registers.xlsx](registers/beatmind-registers.xlsx), generated from the CSV files by `registers/build_workbook.py`.
 
