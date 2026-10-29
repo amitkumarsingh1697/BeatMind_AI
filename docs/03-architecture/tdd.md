@@ -50,7 +50,7 @@ flowchart LR
 | ID | Component | Technology | Responsibility |
 | --- | --- | --- | --- |
 | ARCH-01 | Web app | Next.js (React, TypeScript), next-intl for i18n, PWA | Pages, player, editor, checkout, admin console UI; server-side rendering for public song pages |
-| ARCH-02 | Core API | Java 21, Spring Boot 3, Spring Security, Spring Data JPA, Flyway | Modular monolith with modules: identity, library, generation orchestration, rights and certificates, provenance, billing and pricing, moderation, admin |
+| ARCH-02 | Core API | Java 21, Spring Boot 4.1, Spring Modulith, Spring Security, Spring JDBC (JPA where it helps), Flyway | Modular monolith with modules: identity, library, generation orchestration, rights and certificates, provenance, billing and pricing, moderation, admin |
 | ARCH-03 | Job queue | PostgreSQL table with `FOR UPDATE SKIP LOCKED`, behind a `JobQueue` interface | Durable hand-off from API to workers; retries, priorities, dead-letter. Swap to RabbitMQ or Kafka when throughput needs it (ADR-005) |
 | ARCH-04 | GPU workers | Python 3.11, PyTorch, model runners | Song and beat generation, lyric generation, stem separation |
 | ARCH-05 | Post-processing workers | Python or Java on CPU; ffmpeg; c2pa-rs; AudioSeal | Loudness normalisation, encoding, watermark embed, C2PA manifest signing, fingerprinting |
@@ -221,7 +221,7 @@ OpenAPI 3.1 specification is generated from code (springdoc) and published in `d
 
 | Layer | Choice | ADR |
 | --- | --- | --- |
-| Core API | Java 21, Spring Boot 3, Maven, JUnit 5, Mockito, Testcontainers, ArchUnit | ADR-002 |
+| Core API | Java 21, Spring Boot 4.1, Spring Modulith (module checks on ArchUnit), Maven, JUnit 5, Mockito | ADR-002 |
 | Workers | Python 3.11, PyTorch, pytest | ADR-002 |
 | Web | TypeScript, Next.js, React, Tailwind CSS, next-intl, Playwright | ADR-003 |
 | Data | PostgreSQL 16, Valkey, Cloudflare R2 | ADR-004 |

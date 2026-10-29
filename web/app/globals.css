@@ -1,0 +1,49 @@
+:root {
+  --bg: #0f1724;
+  --panel: #182235;
+  --text: #f2f4f8;
+  --muted: #a9b3c5;
+  --accent: #e86a33;
+  --focus: #ffd166;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, "Noto Sans", "Noto Sans Devanagari", sans-serif;
+  line-height: 1.6;
+}
+
+main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+.lang { text-align: right; }
+a { color: var(--focus); }
+h1 { font-size: 2.4rem; margin: 24px 0 8px; }
+.tagline { font-size: 1.25rem; color: var(--accent); margin: 0; }
+.soon, .note, .privacy, .tax { color: var(--muted); font-size: 0.95rem; }
+.points { padding-left: 20px; }
+.points li { margin: 6px 0; }
+section { background: var(--panel); border-radius: 12px; padding: 20px; margin-top: 24px; }
+h2 { margin-top: 0; font-size: 1.3rem; }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.plan { border: 1px solid #2c3a55; border-radius: 10px; padding: 12px 16px; }
+.plan h3 { margin: 0; font-size: 1rem; }
+.amount { font-size: 1.8rem; font-weight: 700; margin: 4px 0 0; }
+.amount span { font-size: 1rem; font-weight: 400; color: var(--muted); }
+form { display: grid; gap: 14px; }
+label { display: grid; gap: 6px; }
+label.check { grid-template-columns: auto 1fr; align-items: start; gap: 10px; }
+input[type="email"], select {
+  font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid #3a4a69;
+  background: #0f1724; color: var(--text); min-height: 44px;
+}
+input[type="checkbox"] { width: 22px; height: 22px; margin-top: 3px; }
+button {
+  font: inherit; font-weight: 600; min-height: 48px; border: 0; border-radius: 8px;
+  background: var(--accent); color: #111; cursor: pointer;
+}
+button:disabled { opacity: 0.6; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }

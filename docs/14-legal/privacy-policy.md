@@ -44,6 +44,7 @@ Primarily in [India]. Some providers process data in other countries; transfers 
 | Security logs | 30 days |
 | Payment and tax records | As long as tax law requires [counsel: period] |
 | Analytics | 12 months, then aggregated |
+| Waitlist sign-ups (before launch) | Until 6 months after public launch, or sooner if you ask [counsel: confirm] |
 
 ## 6. Your rights
 

@@ -1,0 +1,7 @@
+# Secret scan settings (REQ-SEC-12). Uses gitleaks' default rules plus known false positives.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Plain words the generic-api-key rule mistakes for keys"
+regexes = ['''S3-compatible''']

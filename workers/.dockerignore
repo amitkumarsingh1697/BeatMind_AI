@@ -1,0 +1,5 @@
+tests
+bench
+spikes
+**/__pycache__
+*.egg-info

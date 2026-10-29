@@ -1,0 +1,121 @@
+id,prompt,lyrics,vocal_language,duration
+H01,"romantic bollywood pop ballad, soft piano and strings, male vocal","[Verse]
+तेरी हँसी में सुबह की धूप है
+तेरी बातों में बारिश का रूप है
+[Chorus]
+दिल कहता है रुक जा यहीं
+तेरे बिना कुछ भी नहीं",hi,60
+H02,"upbeat festive dance track with dhol, female vocal","[Verse]
+रंगों की बरसात है आज
+नाचे सारा गाँव और समाज
+[Chorus]
+ढोल बजे, धूम मचे
+खुशियों के दीप जले",hi,60
+H03,"motivational anthem, big drums, male vocal","[Verse]
+गिर के फिर से उठना है
+हर मुश्किल से लड़ना है
+[Chorus]
+चल पड़ा हूँ मैं, रुकना नहीं
+सपनों से पहले झुकना नहीं",hi,60
+H04,"monsoon acoustic song, gentle guitar, female vocal","[Verse]
+बादल आए, बूँदें गिरीं
+मिट्टी की खुशबू हवा में घुली
+[Chorus]
+भीगी भीगी शाम है
+तेरा ही बस नाम है",hi,60
+H05,"sad slow song, sarangi and piano, male vocal","[Verse]
+खाली कमरा, खाली रात
+याद आती है हर इक बात
+[Chorus]
+तू जो गया, सब ले गया
+बस एक आँसू रह गया",hi,60
+H06,"wedding sangeet song, playful, duet","[Verse]
+मेहंदी लगी है हाथों में
+सपने सजे हैं आँखों में
+[Chorus]
+आज है शादी, नाचो सब
+खुशियाँ बाँटो, गाओ सब",hi,60
+H07,"travel vlog pop song, bright ukulele, female vocal","[Verse]
+पहाड़ों की ओर चले हम
+हवा के संग बहे हम
+[Chorus]
+नई राहें, नई बातें
+यादों से भरी ये रातें",hi,60
+H08,"cricket celebration anthem, stadium chant, male vocal","[Verse]
+बल्ला घूमा, गेंद उड़ी
+सारी दुनिया देखती रही
+[Chorus]
+जीत गए हम, जीत गए
+दिल के अरमान जीत गए",hi,60
+H09,"lullaby, soft music box and flute, female vocal","[Verse]
+चंदा मामा दूर के
+सपने लाए नूर के
+[Chorus]
+सो जा मेरी गुड़िया रानी
+सुन ले प्यारी एक कहानी",hi,60
+H10,"sufi inspired song, harmonium and tabla, male vocal","[Verse]
+दिल की राहों में तेरा नूर है
+तू पास है, फिर भी दूर है
+[Chorus]
+इश्क़ में डूबा हूँ मैं
+खुद से भी छूटा हूँ मैं",hi,60
+H11,"hip hop track, hard beat, male rap vocal","[Verse]
+गली से निकला, सपने बड़े
+रास्ते में पत्थर पड़े
+[Chorus]
+मेरा टाइम आएगा
+हर कोई देखता जाएगा",hi,60
+H12,"indie folk song, acoustic guitar, female vocal","[Verse]
+गाँव की पगडंडी याद आती है
+माँ की रोटी की खुशबू आती है
+[Chorus]
+घर लौट के आना है
+फिर से बच्चा बन जाना है",hi,60
+H13,"retro 90s bollywood style song, synth and drums, duet","[Verse]
+तुमसे मिले तो ऐसा लगा
+जैसे कोई सपना जगा
+[Chorus]
+ओ सनम, ओ सनम
+तुम ही मेरे हमदम",hi,60
+H14,"friendship song, cheerful pop rock, group vocal","[Verse]
+यारों की टोली, मस्ती भरी
+हर पल में है दुनिया हरी
+[Chorus]
+दोस्ती ये कभी ना टूटे
+साथ ये कभी ना छूटे",hi,60
+H15,"patriotic song, orchestral, male vocal","[Verse]
+मिट्टी मेरी, देश मेरा
+हर दिल में है ये बसेरा
+[Chorus]
+सलाम तुझे, ऐ वतन
+तुझपे वारी हर धड़कन",hi,60
+H16,"cooking channel jingle, fun and quirky, female vocal","[Verse]
+तड़का लगाओ, खुशबू फैलाओ
+मसाले डालो, स्वाद बढ़ाओ
+[Chorus]
+आओ खाना बनाएँ
+सबको मिलकर खिलाएँ",hi,60
+H17,"fitness workout song, fast EDM, male vocal","[Verse]
+पसीना बहा, दम लगा
+हर दिन थोड़ा और बढ़ा
+[Chorus]
+रुकना नहीं, थकना नहीं
+हारना कभी सीखना नहीं",hi,60
+H18,"heartbreak song, emotional rock ballad, male vocal","[Verse]
+टूटे वादे, टूटी बातें
+जागी जागी सारी रातें
+[Chorus]
+भूल जाऊँ कैसे तुझे
+तू ही बता दे मुझे",hi,60
+H19,"diwali celebration song, joyful, female vocal","[Verse]
+दीयों से रोशन हर आँगन
+मिठाई से मीठा हर मन
+[Chorus]
+आई दिवाली, आई दिवाली
+खुशियों वाली, रोशनी वाली",hi,60
+H20,"college farewell song, nostalgic acoustic, duet","[Verse]
+कैंटीन की चाय, क्लास की बातें
+याद आएँगी वो सारी रातें
+[Chorus]
+अलविदा कहना मुश्किल है
+ये पल सबसे क़ीमती है",hi,60

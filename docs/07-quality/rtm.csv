@@ -30,7 +30,7 @@ REQ-F-31,FEAT-10,TC-REQ-F-31-01,"Every generation, edit and export appends a led
 REQ-F-31,FEAT-10,TC-REQ-F-31-02,Tampered event breaks chain verification,Unit,JUnit 5,Yes,G2,Not written
 REQ-F-32,FEAT-10,TC-REQ-F-32-01,Verify page identifies BeatMind file and reports coarse answer to anonymous users,E2E,Playwright,Yes,G2,Not written
 REQ-F-33,FEAT-10,TC-REQ-F-33-01,"AI-generated label visible on song page, embed and download dialog",E2E,Playwright,Yes,G2,Not written
-REQ-F-40,FEAT-08,TC-REQ-F-40-01,Price shown in local currency for each band country,Unit,JUnit 5,Yes,G3,Not written
+REQ-F-40,FEAT-08,TC-REQ-F-40-01,Price shown in local currency for each band country,Unit,JUnit 5,Yes,G3,Written
 REQ-F-41,FEAT-08,TC-REQ-F-41-01,Billing country of payment method overrides browsing country,Integration,JUnit 5,Yes,G3,Not written
 REQ-F-42,FEAT-08,TC-REQ-F-42-01,"UPI, card and net banking checkout in Razorpay test mode",Integration,JUnit 5 + provider sandbox,Yes,G3,Not written
 REQ-F-43,FEAT-08,TC-REQ-F-43-01,Cancellation completes in three steps or fewer,E2E,Playwright,Yes,G3,Not written

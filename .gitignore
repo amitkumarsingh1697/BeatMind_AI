@@ -12,3 +12,12 @@ __pycache__/
 .env.*
 *.pem
 *.key
+*.tsbuildinfo
+next-env.d.ts
+*.egg-info/
+.venv/
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
