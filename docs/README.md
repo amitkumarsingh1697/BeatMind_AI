@@ -2,7 +2,7 @@
 
 | Item | Value |
 | --- | --- |
-| Package version | 0.3 (Batches 1 to 3: foundation; security, compliance, quality, UX; delivery and operations) |
+| Package version | 0.4 (Batches 1 to 4: foundation; security, compliance, quality, UX; delivery and operations; business, legal and investor) |
 | Date | 2026-10-28 |
 | Owner | Amit Kumar Singh (founder) |
 | Prepared with | Claude (AI assistant). Everything here is a draft for founder review. Legal, tax and financial content needs sign-off from a qualified professional before anyone relies on it. |
@@ -60,7 +60,7 @@ Rules this package follows: no invented customers, revenue, traction, measuremen
 | --- | --- | --- | --- | --- |
 | 1 | Product requirements document (v2.1) and entitlement matrix | 1, 2 | Draft | [02-product/prd.md](02-product/prd.md), [entitlement-matrix.csv](02-product/entitlement-matrix.csv) |
 | 2 | Technical design document (v2.0) with ADRs | 1 | Draft | [03-architecture/tdd.md](03-architecture/tdd.md) |
-| 3 | Pitch deck (rewrite) | 4 | Not started | |
+| 3 | Pitch deck (rewrite) | 4 | Draft | [15-investor/pitch-deck.md](15-investor/pitch-deck.md), [PowerPoint](15-investor/beatmind-pitch-deck-v2.pptx) |
 | 4 | Market, launch-market and competitor analysis | 1 | Draft | [01-market/market-and-competitor-analysis.md](01-market/market-and-competitor-analysis.md) |
 | 5 | Scrum plan (epics, stories, sprints) | 3 | Draft | [09-delivery/scrum-plan.md](09-delivery/scrum-plan.md), [product-backlog.csv](09-delivery/product-backlog.csv) |
 | 6 | Compliance and regulatory register | 2 | Draft | [05-compliance/](05-compliance/README.md) |
@@ -69,10 +69,10 @@ Rules this package follows: no invented customers, revenue, traction, measuremen
 | 9 | Security architecture and threat model | 2 | Draft | [04-security/threat-model.md](04-security/threat-model.md) |
 | 10 | SRE handbook (SLOs, runbooks, incident process) | 3 | Draft | [10-operations/sre-handbook.md](10-operations/sre-handbook.md) |
 | 11 | UX and accessibility specification | 2 | Draft | [08-ux/ux-accessibility-spec.md](08-ux/ux-accessibility-spec.md) |
-| 12 | Go-to-market plan | 4 | Not started | |
-| 13 | Pricing (purchasing-power parity) and financial model | 4 | Not started (pricing principles in PRD section 9) | |
-| 14 | Legal pack: terms of service, licence and rights certificate, privacy policy, acceptable use, takedown policy | 4 | Not started | |
-| 15 | Investor diligence pack | 4 | Not started | |
+| 12 | Go-to-market plan | 4 | Draft | [13-business/go-to-market.md](13-business/go-to-market.md) |
+| 13 | Pricing (purchasing-power parity) and financial model | 4 | Draft | [13-business/pricing-and-financial-model.md](13-business/pricing-and-financial-model.md), [Excel](13-business/financial-model.xlsx) |
+| 14 | Legal pack: terms of service, licence and rights certificate, privacy policy, acceptable use, takedown policy | 4 | Draft (needs counsel) | [14-legal/](14-legal/README.md) |
+| 15 | Investor diligence pack | 4 | Draft | [15-investor/diligence-pack.md](15-investor/diligence-pack.md) |
 | 16 | Customer documentation (help centre, onboarding) | 3 | Draft | [12-customer/help-centre.md](12-customer/help-centre.md) |
 | 17 | Decision log | 1 | Draft | [00-governance/decision-log.md](00-governance/decision-log.md) |
 | 18 | Open questions | 1 | Draft | [00-governance/open-questions.md](00-governance/open-questions.md) |
