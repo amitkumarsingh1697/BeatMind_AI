@@ -74,17 +74,17 @@ Reading: in the low scenario, free users cost more than paid users bring in, so 
 
 ## 4. Budget recommendations
 
-### 4.1 Before funding (depends on Q-F02)
+### 4.1 Before funding (₹5,000 to ₹10,000 a month, DEC-023)
 
-| Use | ₹0 a month | ₹10,000 a month | ₹50,000 a month |
+| Use | ₹5,000 a month | ₹10,000 a month | Notes |
 | --- | --- | --- | --- |
-| GPU compute for beta | Credits only (A-031); tiny invite beta | 60% | 55% |
-| Domain, email, tools beyond free tiers | Free tiers only | 10% | 5% |
-| Listening-test honoraria and interview incentives | Volunteers | 15% | 15% |
-| Company compliance (accountant, filings) | Founders' savings, one-off | 15% | 15% |
-| Counsel review of terms | Founders' savings, one-off before paid launch | 0% | 10% |
+| GPU compute for beta (rented by the hour, scaled to zero) | 60% (₹3,000) | 60% (₹6,000) | Largest cost. Startup credits are applied first; unspent money rolls into the next month |
+| Domain, email, tools beyond free tiers | 10% (₹500) | 10% (₹1,000) | Domain about once a year |
+| Listening-test honoraria and interview incentives | 10% (₹500) | 15% (₹1,500) | Evidence for gate G1 and for investors |
+| Company compliance (accountant, filings) | 20% (₹1,000) | 15% (₹1,500) | Incorporation itself is a one-off cost; get quotes |
+| Counsel review of terms | 0% | 0% | Paid one-off from savings before paid launch, or after funding |
 
-At ₹0 a month the beta depends entirely on startup credits. Google's programme lists a working MVP as a requirement for its Start tier [SS, SRC-110], so credits are likely to arrive only after the January demo.
+At ₹3,000 to ₹6,000 a month for GPU, the beta can run on hourly rented GPUs that switch off when idle. At the modelled cost of $0.002 to $0.006 a take (TDD 9.1, not yet measured), that is about 5,700 to 17,000 takes a month [C: ₹3,000 ÷ 88 ≈ $34; $34 ÷ $0.006 to $0.002], enough for an invite-only beta. The Sprint 0 benchmark (US-005) replaces this estimate. The fallback API (Lyria, about $0.08 a song) stays off during the beta unless credits cover it. Google's programme lists a working MVP as a requirement for its Start tier [SS, SRC-110], so credits are likely to arrive only after the January beta.
 
 ### 4.2 After a seed round (share of the round; no amount assumed)
 

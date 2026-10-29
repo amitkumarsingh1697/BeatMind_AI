@@ -5,7 +5,7 @@
 | Version | 0.1 (Batch 3), 2026-10-28 |
 | Perspective | Delivery manager |
 | Backlog | [product-backlog.csv](product-backlog.csv): 43 user stories (US-001 to US-043) in 12 epics, 207 story points |
-| Assumptions | A-003 (January 2027 is investor demo and closed beta), A-010 (3 developers at about 40 hours a week), A-001 (Indian entity for payments) |
+| Assumptions | A-003 (January 2027 is investor demo and closed beta), A-010 (3 developers at 30 to 50 hours a week, DEC-026; plans use 30), A-001 (Indian entity for payments) |
 | Status | Draft. Dates are plans, not commitments; velocity is unknown until Sprint 1 ends. |
 
 ## 1. Team and roles
@@ -44,7 +44,7 @@ Suggested ownership to reduce key-person risk (RISK-010), with a named backup fo
 
 ## 4. Sprint plan
 
-Velocity assumption: 35 to 45 points per sprint for three senior developers with AI assistance [E]. Recalibrate after Sprint 1.
+Velocity assumption: 35 to 45 points per sprint at 40 hours a week each, for three senior developers with AI assistance [E]. The founder confirmed 30 to 50 hours a week (DEC-026). At the 30-hour floor, expect about 26 to 34 points [C: 35 to 45 x 30/40], so Sprints 2, 3 and 5 are over capacity at the floor and the cut line below applies first. Recalibrate after Sprint 1.
 
 | Sprint | Dates (2026-2027) | Goal | Points | Key stories |
 | --- | --- | --- | --- | --- |
