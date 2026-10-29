@@ -45,7 +45,7 @@ def build_inputs(wb):
         ("Paid usage as share of allowance", 0.35, "share", "[H]", "To measure in beta"),
         ("Monthly free-user churn", 0.40, "share", "[H]", ""),
         ("Monthly paid churn", 0.08, "share", "[H]", ""),
-        ("Founders' monthly cash budget before funding", 0, "INR", "[A]", "Q-F02 default ₹0"),
+        ("Founders' monthly cash budget before funding", 5000, "INR", "[SS]", "DEC-023: ₹5,000 to ₹10,000; floor used"),
     ]
     for i, (name, val, unit, tag, basis) in enumerate(rows, start=3):
         ws.cell(i, 1, name)
@@ -179,19 +179,19 @@ def build_scenarios(wb):
 def build_budgets(wb):
     ws = wb.create_sheet("Budgets")
     ws["A1"] = "Recommended allocation of money. Shares are recommendations [E]; amounts follow the founders' decision (Q-F02) and any future round. No round size is assumed."
-    header(ws, 3, ["Pre-funding monthly budget (Q-F02)", "₹0", "₹10,000", "₹50,000", "Notes"])
+    header(ws, 3, ["Pre-funding monthly budget (DEC-023)", "₹5,000", "₹10,000", "", "Notes"])
     pre = [
-        ("GPU compute for beta (rented, scale to zero)", 0, 0.60, 0.55, "Largest variable cost; credits first"),
-        ("Domain, email, tools beyond free tiers", 0, 0.10, 0.05, ""),
-        ("Listening-test honoraria and interview incentives", 0, 0.15, 0.15, "Evidence for investors"),
-        ("Company compliance (accountant, filings)", 0, 0.15, 0.15, "Needs quotes"),
-        ("Counsel review of terms", 0, 0.0, 0.10, "Or pay one-off from savings before paid launch"),
+        ("GPU compute for beta (rented, scale to zero)", 0.60, 0.60, None, "Largest variable cost; credits first"),
+        ("Domain, email, tools beyond free tiers", 0.10, 0.10, None, ""),
+        ("Listening-test honoraria and interview incentives", 0.10, 0.15, None, "Evidence for investors"),
+        ("Company compliance (accountant, filings)", 0.20, 0.15, None, "Needs quotes"),
+        ("Counsel review of terms", 0.0, 0.0, None, "Pay one-off from savings before paid launch"),
     ]
     for i, row in enumerate(pre, start=4):
         for j, v in enumerate(row, start=1):
             ws.cell(i, j, v)
     ws.cell(9, 1, "Total share").font = BOLD
-    for col in "BCD":
+    for col in "BC":
         ws[f"{col}9"] = f"=SUM({col}4:{col}8)"
 
     header(ws, 11, ["Use of funds after a seed round (share)", "Share", "What it buys", "", ""])

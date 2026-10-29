@@ -27,6 +27,12 @@ Version 0.1, 2026-10-28. Each entry records who decided, when, and what changes 
 | DEC-019 | 2026-10-28 | Working name BEATMIND AI; open to a better available name from any language, mythology or culture. | Founder | Brand research in `01-market/brand-name-research.md`. |
 | DEC-020 | 2026-10-28 | Produce all production-ready documents, including those beyond the original 23. | Founder | Deliverables 24 and 25 (DPIA, model cards) added. |
 | DEC-021 | 2026-10-28 | Ask any further open questions before research, planning and implementation. | Founder | Follow-up questions Q-F01 to Q-F06 in `open-questions.md`. Work continues on stated defaults meanwhile. |
+| DEC-022 | 2026-10-29 | Company not yet registered; it will be registered in India. Developers are in India and work remotely. | Founder | Answers Q-F01. Confirms A-001: Indian private limited company, Indian governing law in the terms, GST, Razorpay. |
+| DEC-023 | 2026-10-29 | Founders can spend ₹5,000 to ₹10,000 a month before funding. | Founder | Answers Q-F02. Read as Indian rupees, the currency the question used. Budget plan uses ₹5,000 as the floor and ₹10,000 as the ceiling (financial model 4.1). |
+| DEC-024 | 2026-10-29 | January 2027 means a beta version. The final plan depends on testing and bug fixes. | Founder | Answers Q-F03. Confirms A-003: closed beta from January 2027, gated by G2; public launch only after G3. |
+| DEC-025 | 2026-10-29 | The 5 commercially usable free songs are per calendar month. | Founder | Answers Q-F05. Confirms A-005; rights terms 3.3 and the entitlement matrix already use this. |
+| DEC-026 | 2026-10-29 | Each developer gives 30 to 50 hours a week over 5 days. | Founder | Answers Q-F06. Sprint capacity is planned at the 30-hour floor (scrum plan section 4). |
+| DEC-027 | 2026-10-29 | **Beta runs on a free open-weight model (ACE-Step 1.5) with the training-data risk disclosed.** Chosen on the decision card over a paid licensed model only and a legal opinion first. | Founder | Answers Q-F04. Confirms A-004 and ADR-007: similarity screening on every song, honest disclosure in terms and investor material, a backup model ready, and a move to licensed data after funding (RISK-001). |
 
 ## Project decisions made on the founder's behalf
 

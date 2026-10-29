@@ -22,7 +22,7 @@ Version 0.1 (Batch 2), 2026-10-28. This document lists every AI model BeatMind p
 ### Rules for adding or changing a model
 
 1. Read the licence file in the publisher's official repository; save a dated copy in `docs/06-ai/licences/` with its SHA-256 hash.
-2. Record the training data statement exactly as published. If none exists, the model may be used for evaluation only unless the founders accept the risk in writing (Q-F04).
+2. Record the training data statement exactly as published. If none exists, the model may be used for evaluation only unless the founders accept the risk in writing (Q-F04; accepted for ACE-Step 1.5 in DEC-027).
 3. Pin weights by SHA-256 and load only `safetensors` files (REQ-SEC-11).
 4. Run gate G1 for each language before launch use.
 5. Update this register and the risk register in the same pull request.
