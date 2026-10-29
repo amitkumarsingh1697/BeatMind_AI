@@ -24,6 +24,8 @@ The product processes personal data at scale, uses AI on user-provided text, kee
 | Technical | IP address, device fingerprint, user agent, logs | System | Security, abuse prevention | Legitimate use (security) | 30 days logs; fingerprints account life |
 | Analytics | Product events | System | Improve product | Consent (opt-in) | 12 months, then aggregated |
 | Training opt-in | Flag and the user's songs | User | Improve models only if opted in (DEC-009) | Explicit consent | Until withdrawn |
+| Waitlist (pre-launch, US-007) | Email, country, language, chosen use case, source channel, price variant shown, consent version, 18+ confirmation | User; country from the edge | Tell people when the beta opens; price research (EXP-02) | Consent (DPDP and GDPR) | Until 6 months after public launch, or sooner on request [A, counsel to confirm] |
+| Waitlist visit counts | Day, country, price variant, source channel, count. No identifiers | System | Visit-to-sign-up rate for EXP-02 | Not personal data | Until EXP-02 is closed |
 | Support and reports | Messages, takedown notices | User; third parties | Support, legal process | Legal obligation; legitimate use | 3 years (to confirm) |
 
 ## 3. Data flows and processors

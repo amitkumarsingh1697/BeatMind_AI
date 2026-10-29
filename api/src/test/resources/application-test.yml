@@ -1,0 +1,7 @@
+spring:
+  datasource:
+    url: ${TEST_DATABASE_URL:jdbc:postgresql://localhost:5432/beatmind_test}
+    username: ${TEST_DATABASE_USER:beatmind}
+    password: ${TEST_DATABASE_PASSWORD:beatmind}
+  flyway:
+    clean-disabled: false

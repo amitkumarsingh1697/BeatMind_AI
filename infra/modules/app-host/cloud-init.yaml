@@ -1,0 +1,9 @@
+#cloud-config
+# Installs Docker so the release workflow can pull and run the container images.
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+runcmd:
+  - systemctl enable --now docker
+  - usermod -aG docker ubuntu

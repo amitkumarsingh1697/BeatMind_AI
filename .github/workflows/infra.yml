@@ -1,0 +1,56 @@
+# Plans or applies one environment (US-003). Manual only; production needs a reviewer's approval
+# through the GitHub environment. See infra/README.md for the one-time setup.
+name: Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [staging, production]
+        required: true
+      action:
+        type: choice
+        options: [plan, apply]
+        default: plan
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-${{ inputs.environment }}
+
+jobs:
+  tofu:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: infra/envs/${{ inputs.environment }}
+    env:
+      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      TF_VAR_oci_tenancy_ocid: ${{ secrets.OCI_TENANCY_OCID }}
+      TF_VAR_oci_user_ocid: ${{ secrets.OCI_USER_OCID }}
+      TF_VAR_oci_fingerprint: ${{ secrets.OCI_FINGERPRINT }}
+      TF_VAR_oci_private_key: ${{ secrets.OCI_PRIVATE_KEY }}
+      TF_VAR_oci_compartment_ocid: ${{ secrets.OCI_COMPARTMENT_OCID }}
+      TF_VAR_oci_image_ocid: ${{ secrets.OCI_IMAGE_OCID }}
+      TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+      TF_VAR_admin_cidrs: ${{ secrets.ADMIN_CIDRS }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.STATE_BUCKET_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.STATE_BUCKET_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+      - name: Init
+        run: >-
+          tofu init -input=false
+          -backend-config="bucket=beatmind-tofu-state"
+          -backend-config="endpoints={s3=\"${{ secrets.STATE_BUCKET_ENDPOINT }}\"}"
+      - name: Plan
+        run: tofu plan -input=false -out=tfplan
+      - name: Apply
+        if: inputs.action == 'apply'
+        run: tofu apply -input=false tfplan
