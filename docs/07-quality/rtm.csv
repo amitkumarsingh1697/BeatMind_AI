@@ -1,0 +1,73 @@
+requirement,feature,test_case,description,level,tool,automated,gate,status
+REQ-F-01,FEAT-01,TC-REQ-F-01-01,Description prompt returns two playable takes,E2E,Playwright,Yes,G2,Not written
+REQ-F-01,FEAT-01,TC-REQ-F-01-02,p95 time to playable under 60 s at beta load,Performance,k6,Yes,G2,Not written
+REQ-F-02,FEAT-02,TC-REQ-F-02-01,"Accepts 3,000 grapheme clusters of Devanagari; rejects 3,001",Unit,JUnit 5,Yes,G2,Not written
+REQ-F-02,FEAT-02,TC-REQ-F-02-02,Hinglish and English lyrics accepted; vocal type and instrumental toggle honoured,Integration,JUnit 5 + Testcontainers,Yes,G2,Not written
+REQ-F-03,FEAT-03,TC-REQ-F-03-01,"Lyric writer returns verse, chorus and bridge sections in requested language",Integration,pytest,Yes,G1,Not written
+REQ-F-03,FEAT-03,TC-REQ-F-03-02,Native-speaker review of 50 lyric samples per language,Manual,Review sheet,No,G1,Not written
+REQ-F-04,FEAT-04,TC-REQ-F-04-01,"Beat request validates BPM 60-200, key and instrument lists",Unit,JUnit 5,Yes,G1,Not written
+REQ-F-04,FEAT-04,TC-REQ-F-04-02,Detected tempo within ±3 BPM and key matches in target share of takes,Model eval,pytest + librosa,Yes,G1,Not written
+REQ-F-05,FEAT-05,TC-REQ-F-05-01,"Two takes per request; keep, regenerate and discard work",E2E,Playwright,Yes,G2,Not written
+REQ-F-06,FEAT-02,TC-REQ-F-06-01,Lengths 30 s and 4 min produced within ±5 s,Model eval,pytest,Yes,G2,Not written
+REQ-F-07,FEAT-16,TC-REQ-F-07-01,Language not passed G1 is hidden or marked experimental,Integration,JUnit 5,Yes,G2,Not written
+REQ-F-08,FEAT-16,TC-REQ-F-08-01,Text stored NFC; grapheme counting; transliteration and language tag stored,Unit,JUnit 5,Yes,G2,Not written
+REQ-F-08,FEAT-16,TC-REQ-F-08-02,Certificate PDF renders Devanagari correctly,Integration,JUnit 5 + PDF text extraction,Yes,G2,Not written
+REQ-F-10,FEAT-06,TC-REQ-F-10-01,"Extend, trim, fade and section regenerate create new versions",Integration,JUnit 5,Yes,G2,Not written
+REQ-F-10,FEAT-06,TC-REQ-F-10-02,Seam test: no onset or spectral discontinuity above threshold at edit boundaries,Model eval,pytest,Yes,G2,Not written
+REQ-F-11,FEAT-06,TC-REQ-F-11-01,Compare and restore earlier version,E2E,Playwright,Yes,G2,Not written
+REQ-F-20,FEAT-07,TC-REQ-F-20-01,Free MP3 192 kbps download carries attribution metadata,Integration,JUnit 5,Yes,G2,Not written
+REQ-F-21,FEAT-09,TC-REQ-F-21-01,Sixth commercial licence in a calendar month is refused,Unit,JUnit 5,Yes,G2,Not written
+REQ-F-21,FEAT-09,TC-REQ-F-21-02,Counter resets at month boundary in user's billing time zone,Unit,JUnit 5,Yes,G2,Not written
+REQ-F-22,FEAT-09,TC-REQ-F-22-01,Paid-plan song created with user_owned state and certificate wording approved by counsel,Integration,JUnit 5,Yes,G3,Not written
+REQ-F-23,FEAT-07,TC-REQ-F-23-01,Paid user downloads WAV 48 kHz 24-bit and MP3 320,Integration,JUnit 5,Yes,G2,Not written
+REQ-F-23,FEAT-07,TC-REQ-F-23-02,Four stems produced and sum to mix within tolerance,Model eval,pytest,Yes,G2,Not written
+REQ-F-23,FEAT-07,TC-REQ-F-23-03,Stem separation quality (SDR) reported on test set,Model eval,pytest,Yes,G2,Not written
+REQ-F-24,FEAT-09,TC-REQ-F-24-01,Free song conversion rule applied (after Batch 4 rule),Unit,JUnit 5,Yes,G3,Not written
+REQ-F-25,FEAT-09,TC-REQ-F-25-01,Cancelling does not change rights_status of existing songs,Unit,JUnit 5,Yes,G2,Not written
+REQ-F-26,FEAT-09,TC-REQ-F-26-01,Copy check: no string promises copyright protection or claim-free use,Static,Copy lint script,Yes,G2,Not written
+REQ-F-30,FEAT-10,TC-REQ-F-30-01,"Exported files carry AI label metadata, valid C2PA manifest and detectable watermark",Integration,pytest + c2patool,Yes,G2,Not written
+REQ-F-31,FEAT-10,TC-REQ-F-31-01,"Every generation, edit and export appends a ledger event; chain verifies",Unit,JUnit 5,Yes,G2,Not written
+REQ-F-31,FEAT-10,TC-REQ-F-31-02,Tampered event breaks chain verification,Unit,JUnit 5,Yes,G2,Not written
+REQ-F-32,FEAT-10,TC-REQ-F-32-01,Verify page identifies BeatMind file and reports coarse answer to anonymous users,E2E,Playwright,Yes,G2,Not written
+REQ-F-33,FEAT-10,TC-REQ-F-33-01,"AI-generated label visible on song page, embed and download dialog",E2E,Playwright,Yes,G2,Not written
+REQ-F-40,FEAT-08,TC-REQ-F-40-01,Price shown in local currency for each band country,Unit,JUnit 5,Yes,G3,Not written
+REQ-F-41,FEAT-08,TC-REQ-F-41-01,Billing country of payment method overrides browsing country,Integration,JUnit 5,Yes,G3,Not written
+REQ-F-42,FEAT-08,TC-REQ-F-42-01,"UPI, card and net banking checkout in Razorpay test mode",Integration,JUnit 5 + provider sandbox,Yes,G3,Not written
+REQ-F-43,FEAT-08,TC-REQ-F-43-01,Cancellation completes in three steps or fewer,E2E,Playwright,Yes,G3,Not written
+REQ-F-50,FEAT-14,TC-REQ-F-50-01,"Artist names in Latin, Devanagari and romanised Hindi blocked",Unit,JUnit 5,Yes,G2,Not written
+REQ-F-50,FEAT-14,TC-REQ-F-50-02,Unicode attack corpus does not bypass block,Unit,JUnit 5,Yes,G2,Not written
+REQ-F-51,FEAT-14,TC-REQ-F-51-01,Lyric moderation red-team set in three languages: no prohibited output passes,Model eval,pytest,Yes,G2,Not written
+REQ-F-52,FEAT-14,TC-REQ-F-52-01,Similarity screen withholds known near-copies in labelled set at target rates,Model eval,pytest,Yes,G2,Not written
+REQ-F-53,FEAT-15,TC-REQ-F-53-01,Under-18 date of birth blocks sign-up,Unit,JUnit 5,Yes,G2,Not written
+REQ-F-54,FEAT-18,TC-REQ-F-54-01,Takedown disables song and notifies user; 3-hour order path works end to end,E2E,Playwright,Yes,G2,Not written
+REQ-F-55,FEAT-17,TC-REQ-F-55-01,Daily cap and concurrency limit enforced per plan,Integration,JUnit 5,Yes,G2,Not written
+REQ-F-56,FEAT-08,TC-REQ-F-56-01,"Failed, timed-out and withheld takes refund credits with ledger entry",Integration,JUnit 5,Yes,G2,Not written
+REQ-F-57,FEAT-09,TC-REQ-F-57-01,Chargeback webhook reverts rights of songs from the disputed period,Integration,JUnit 5,Yes,G3,Not written
+REQ-F-58,FEAT-09,TC-REQ-F-58-01,Cancelled user can still download owned songs,Integration,JUnit 5,Yes,G3,Not written
+REQ-F-59,FEAT-18,TC-REQ-F-59-01,Appeal creates review case visible in admin queue,E2E,Playwright,Yes,G2,Not written
+REQ-NFR-01,,TC-REQ-NFR-01-01,Latency SLO measured under load profile,Performance,k6,Yes,G2,Not written
+REQ-NFR-02,,TC-REQ-NFR-02-01,Availability measured over 4 beta weeks,Monitoring,Grafana SLO,Yes,G3,Not written
+REQ-NFR-03,,TC-REQ-NFR-03-01,Horizontal scale test: doubling API replicas roughly doubles throughput,Performance,k6,Yes,G3,Not written
+REQ-NFR-04,,TC-REQ-NFR-04-01,OWASP ASVS level 2 checklist completed,Manual,ASVS sheet,No,G3,Not written
+REQ-NFR-05,,TC-REQ-NFR-05-01,Data export and deletion work end to end,E2E,Playwright,Yes,G2,Not written
+REQ-NFR-06,,TC-REQ-NFR-06-01,No clipping; loudness of previews within ±1 LU of target,Model eval,pytest + pyloudnorm,Yes,G2,Not written
+REQ-NFR-07,,TC-REQ-NFR-07-01,Cost per song metric emitted and alert fires above ceiling,Integration,JUnit 5,Yes,G2,Not written
+REQ-NFR-08,,TC-REQ-NFR-08-01,axe-core: zero serious or critical violations on all pages,Automated a11y,Playwright + axe-core,Yes,G2,Not written
+REQ-NFR-08,,TC-REQ-NFR-08-02,"Manual screen-reader pass (NVDA, TalkBack) on core flows",Manual,Checklist,No,G2,Not written
+REQ-NFR-09,,TC-REQ-NFR-09-01,All UI strings externalised; Hindi locale renders without overflow,E2E,Playwright,Yes,G2,Not written
+REQ-NFR-10,,TC-REQ-NFR-10-01,Core flows on a 3 GB RAM Android phone over throttled 4G,Manual,Device lab or emulator,No,G2,Not written
+REQ-SEC-01,,TC-REQ-SEC-01-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-02,,TC-REQ-SEC-02-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-03,,TC-REQ-SEC-03-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-04,,TC-REQ-SEC-04-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-05,,TC-REQ-SEC-05-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-06,,TC-REQ-SEC-06-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-07,,TC-REQ-SEC-07-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-08,,TC-REQ-SEC-08-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-09,,TC-REQ-SEC-09-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-10,,TC-REQ-SEC-10-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-11,,TC-REQ-SEC-11-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-12,,TC-REQ-SEC-12-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-13,,TC-REQ-SEC-13-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-14,,TC-REQ-SEC-14-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-15,,TC-REQ-SEC-15-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written

@@ -1,0 +1,20 @@
+entitlement,free,creator,pro,studio_phase2,requirement
+Song and beat generation,Daily cap set by admin,Monthly credits,Higher monthly credits,Team credits,REQ-F-01; REQ-F-55
+Takes per request,2,2,2,2,REQ-F-05
+Concurrent generation jobs,1,2,4,8,REQ-F-55
+Song length,30 s to 4 min,30 s to 4 min,30 s to 4 min,30 s to 4 min,REQ-F-06
+Languages,Launch languages that passed G1,Same,Same,Same,REQ-F-07
+AI lyric writer,Yes,Yes,Yes,Yes,REQ-F-03
+Editor (extend; trim; fade; section regenerate),Trim and fade only,Yes,Yes,Yes,REQ-F-10
+MP3 download,192 kbps personal use,320 kbps,320 kbps,320 kbps,REQ-F-20; REQ-F-23
+WAV download,No,Yes,Yes,Yes,REQ-F-23
+Separated stems (vocals; drums; bass; other),No,Yes,Yes,Yes,REQ-F-23
+Commercial use,5 songs per month with attribution (A-005),All songs,All songs,All songs,REQ-F-21
+Ownership of songs created on plan,BeatMind owns; user licensed,User owns,User owns,Organisation owns,REQ-F-22
+Licence certificate,For the 5 licensed songs,Every song,Every song,Every song,FEAT-09
+Dispute pack for claims,No,Yes,Yes,Yes,FEAT-11
+Priority queue,No,No,Yes,Yes,PRD 9
+Storage quota (kept takes),100 takes,2000 takes,10000 takes,Team pool,BUG-034
+Public song page and embed,Yes,Yes,Yes,Yes,FEAT-13
+Optional MFA,Yes,Yes,Yes,Required for admins,REQ-SEC-06
+Team workspace and invoices,No,No,No,Yes,FEAT-24
