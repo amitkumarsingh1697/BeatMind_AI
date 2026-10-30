@@ -14,6 +14,22 @@ These are proposals [H] for the founder to confirm:
 A set that passes is **GO** for the beta. A set that fails falls back to the Lyria API for that
 language until the full G1 test (30 or more listeners per language).
 
+## Quick CPU trial
+
+The script also runs without a GPU, for a small first look. On a 4-core CPU with 16 GB RAM, one
+60-second take of the turbo model took about 5 minutes (2026-10-30). Start the server with the
+LM off and a small VAE decode chunk, or the decode runs out of memory:
+
+```sh
+ACESTEP_DEVICE=cpu ACESTEP_INIT_LLM=false ACESTEP_VAE_DECODE_CHUNK_SIZE=64 uv run acestep-api
+python3 generate.py --out trial --sets hindi --limit 5 --timeout 5400
+```
+
+`--thinking` lets ACE-Step's 5Hz language model plan the song from the lyrics before the DiT
+renders it. On 16 GB of RAM only the 0.6B LM fits, and only with the DiT in bfloat16 (a local
+change to ACE-Step's CPU dtype); each take then took about 10 minutes. On a GPU use the default
+1.7B LM.
+
 ## Steps
 
 1. With the ACE-Step API server running on a GPU (see `../../bench/README.md`):
