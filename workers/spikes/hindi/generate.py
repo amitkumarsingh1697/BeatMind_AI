@@ -31,16 +31,20 @@ def main() -> None:
     ap.add_argument("--api-key", default="")
     ap.add_argument("--out", required=True)
     ap.add_argument("--listeners", type=int, default=3)
+    ap.add_argument("--sets", nargs="+", default=["hindi", "hinglish"], choices=["hindi", "hinglish"])
+    ap.add_argument("--limit", type=int, default=0, help="first N prompts per set (0 = all)")
+    ap.add_argument("--timeout", type=float, default=600, help="seconds to wait per take")
     args = ap.parse_args()
 
     out = Path(args.out)
     (out / "audio").mkdir(parents=True, exist_ok=True)
-    client = AceStepClient(args.api, args.api_key)
+    client = AceStepClient(args.api, args.api_key, timeout=args.timeout)
     key_rows = []
     lyric_rows = []
-    for set_name in ("hindi", "hinglish"):
+    for set_name in args.sets:
         with open(HERE / f"prompts-{set_name}.csv", newline="", encoding="utf-8") as f:
-            for p in csv.DictReader(f):
+            prompts = list(csv.DictReader(f))
+            for p in prompts[: args.limit or None]:
                 r = client.generate(
                     {
                         "prompt": p["prompt"],
