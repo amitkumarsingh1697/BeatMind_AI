@@ -59,6 +59,7 @@ def main() -> None:
                 key_rows.append(
                     {"code": code, "set": set_name, "prompt_id": p["id"], "seconds": round(r.seconds, 1)}
                 )
+                lyric_rows.append({"code": code, "lyrics": p["lyrics"]})
                 print(f"{p['id']}: ok -> {code}.mp3")
 
     with open(out / "key.csv", "w", newline="", encoding="utf-8") as f:
