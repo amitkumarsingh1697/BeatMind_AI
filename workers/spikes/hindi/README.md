@@ -25,6 +25,11 @@ ACESTEP_DEVICE=cpu ACESTEP_INIT_LLM=false ACESTEP_VAE_DECODE_CHUNK_SIZE=64 uv ru
 python3 generate.py --out trial --sets hindi --limit 5 --timeout 5400
 ```
 
+`--thinking` lets ACE-Step's 5Hz language model plan the song from the lyrics before the DiT
+renders it. On 16 GB of RAM only the 0.6B LM fits, and only with the DiT in bfloat16 (a local
+change to ACE-Step's CPU dtype); each take then took about 10 minutes. On a GPU use the default
+1.7B LM.
+
 ## Steps
 
 1. With the ACE-Step API server running on a GPU (see `../../bench/README.md`):

@@ -34,6 +34,7 @@ def main() -> None:
     ap.add_argument("--sets", nargs="+", default=["hindi", "hinglish"], choices=["hindi", "hinglish"])
     ap.add_argument("--limit", type=int, default=0, help="first N prompts per set (0 = all)")
     ap.add_argument("--timeout", type=float, default=600, help="seconds to wait per take")
+    ap.add_argument("--thinking", action="store_true", help="let the 5Hz LM plan the audio codes first")
     args = ap.parse_args()
 
     out = Path(args.out)
@@ -53,6 +54,7 @@ def main() -> None:
                         "audio_duration": float(p["duration"]),
                         "batch_size": 1,
                         "audio_format": "mp3",
+                        "thinking": args.thinking,
                     }
                 )
                 if not r.ok:
