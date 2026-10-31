@@ -21,7 +21,7 @@
 | Pricing | US$12, 29, 59 | Purchasing-power price bands by country | DEC-013 |
 | Own-voice cloning | MVP P1 | Removed from Phase 1 | RISK-006, review SRC-005 |
 | Native 8 stems | MVP P0 | Separated stems (post-generation) in MVP; native stems later | Open models generate mixed audio (ADR-007) |
-| Languages | English at launch | Hindi, English, Hinglish at beta; more by quality gate | DEC-018 |
+| Languages | English at launch | Phase 1: most popular languages worldwide (1a beta: Hindi, English, Hinglish, Punjabi, Urdu); Phase 2: regional languages; each by quality gate. Full list in [languages.md](languages.md) | DEC-018, DEC-028 |
 
 ## 2. Vision and positioning
 
@@ -94,7 +94,7 @@ Priority: P0 must ship in the phase, P1 should ship, P2 may ship. The Scrum Mast
 | FEAT-20 | Mixer and DJ deck for songs the user made in BeatMind: crossfade, tempo match, loops, effects, export a mix | P0 | Founder's DJ mixer. Only BeatMind songs or uploads the user owns; third-party commercial songs need licences (out of scope) |
 | FEAT-21 | "Inspired by" mode: describe or upload a reference for mood, tempo and structure only; similarity screening blocks close copies | P1 | Founder's "inspired by an existing song" request, limited to non-infringing attributes |
 | FEAT-22 | Release to Spotify and other services through a distribution partner (ISRC, artwork, AI disclosure) | P1 | Founder's "publish to Spotify"; Spotify does not take uploads directly from apps like ours [A-034] |
-| FEAT-23 | More Indian languages (Punjabi, Tamil, Telugu, Bengali, Marathi), each after it passes gate G1 | P0 | |
+| FEAT-23 | Phase 1b and Phase 2 song languages from [languages.md](languages.md), each after it passes gate G1 | P0 | DEC-028 |
 | FEAT-24 | Team workspaces, briefs, revisions, invoices for directors and agencies | P1 | |
 | FEAT-25 | Melody input: hum or upload MIDI | P1 | |
 | FEAT-26 | MIDI export and DAW-friendly stems | P1 | |
