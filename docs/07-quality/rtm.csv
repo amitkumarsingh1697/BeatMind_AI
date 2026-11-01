@@ -38,7 +38,7 @@ REQ-F-50,FEAT-14,TC-REQ-F-50-01,"Artist names in Latin, Devanagari and romanised
 REQ-F-50,FEAT-14,TC-REQ-F-50-02,Unicode attack corpus does not bypass block,Unit,JUnit 5,Yes,G2,Not written
 REQ-F-51,FEAT-14,TC-REQ-F-51-01,Lyric moderation red-team set in three languages: no prohibited output passes,Model eval,pytest,Yes,G2,Not written
 REQ-F-52,FEAT-14,TC-REQ-F-52-01,Similarity screen withholds known near-copies in labelled set at target rates,Model eval,pytest,Yes,G2,Not written
-REQ-F-53,FEAT-15,TC-REQ-F-53-01,Under-18 date of birth blocks sign-up,Unit,JUnit 5,Yes,G2,Not written
+REQ-F-53,FEAT-15,TC-REQ-F-53-01,Under-18 date of birth blocks sign-up,Unit,JUnit 5,Yes,G2,Written
 REQ-F-54,FEAT-18,TC-REQ-F-54-01,Takedown disables song and notifies user; 3-hour order path works end to end,E2E,Playwright,Yes,G2,Not written
 REQ-F-55,FEAT-17,TC-REQ-F-55-01,Daily cap and concurrency limit enforced per plan,Integration,JUnit 5,Yes,G2,Not written
 REQ-F-56,FEAT-08,TC-REQ-F-56-01,"Failed, timed-out and withheld takes refund credits with ledger entry",Integration,JUnit 5,Yes,G2,Not written
@@ -51,12 +51,12 @@ REQ-NFR-03,,TC-REQ-NFR-03-01,Horizontal scale test: doubling API replicas roughl
 REQ-NFR-04,,TC-REQ-NFR-04-01,OWASP ASVS level 2 checklist completed,Manual,ASVS sheet,No,G3,Not written
 REQ-NFR-05,,TC-REQ-NFR-05-01,Data export and deletion work end to end,E2E,Playwright,Yes,G2,Not written
 REQ-NFR-06,,TC-REQ-NFR-06-01,No clipping; loudness of previews within ±1 LU of target,Model eval,pytest + pyloudnorm,Yes,G2,Not written
-REQ-NFR-07,,TC-REQ-NFR-07-01,Cost per song metric emitted and alert fires above ceiling,Integration,JUnit 5,Yes,G2,Not written
+REQ-NFR-07,,TC-REQ-NFR-07-01,Cost per song metric emitted and alert fires above ceiling,Integration,JUnit 5,Yes,G2,Written
 REQ-NFR-08,,TC-REQ-NFR-08-01,axe-core: zero serious or critical violations on all pages,Automated a11y,Playwright + axe-core,Yes,G2,Not written
 REQ-NFR-08,,TC-REQ-NFR-08-02,"Manual screen-reader pass (NVDA, TalkBack) on core flows",Manual,Checklist,No,G2,Not written
 REQ-NFR-09,,TC-REQ-NFR-09-01,All UI strings externalised; Hindi locale renders without overflow,E2E,Playwright,Yes,G2,Not written
 REQ-NFR-10,,TC-REQ-NFR-10-01,Core flows on a 3 GB RAM Android phone over throttled 4G,Manual,Device lab or emulator,No,G2,Not written
-REQ-SEC-01,,TC-REQ-SEC-01-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
+REQ-SEC-01,,TC-REQ-SEC-01-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Written
 REQ-SEC-02,,TC-REQ-SEC-02-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
 REQ-SEC-03,,TC-REQ-SEC-03-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written
 REQ-SEC-04,,TC-REQ-SEC-04-01,See threat model section 5 verification column,Security,See threat-model.md,Yes,G2,Not written

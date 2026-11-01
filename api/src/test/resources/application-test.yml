@@ -5,3 +5,19 @@ spring:
     password: ${TEST_DATABASE_PASSWORD:beatmind}
   flyway:
     clean-disabled: false
+
+beatmind:
+  auth:
+    pepper: test-pepper
+    dev-codes: true
+    cookie-secure: false
+    admin-emails: admin@example.com
+    google:
+      client-id: test-client.apps.googleusercontent.com
+      client-secret: test-secret
+      redirect-uri: http://localhost:3000/v1/auth/google/callback
+  generation:
+    poll-every: 50ms
+  metrics:
+    # Tests call refresh() themselves.
+    refresh: 1h

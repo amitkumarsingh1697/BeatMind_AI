@@ -16,7 +16,7 @@ The product processes personal data at scale, uses AI on user-provided text, kee
 | Category | Data items | Source | Purpose | Lawful basis (DPDP / GDPR) | Retention |
 | --- | --- | --- | --- | --- | --- |
 | Identity | Email, Google account ID, display name, optional phone | User | Account, sign-in, security | Consent for the service (DPDP); contract (GDPR) | Account life plus 30 days |
-| Age | Year and month of birth | User declaration | Enforce 18+ (REQ-F-53) | Legal obligation | Account life |
+| Age | Year and month of birth. The user enters a full date; the day is used for the 18+ check and not stored. Under-18 accounts are deleted at once (built in Sprint 1) | User declaration | Enforce 18+ (REQ-F-53) | Legal obligation | Account life |
 | Location | Country from IP and billing country | Derived; payment provider | Pricing band, tax, sanctions | Legitimate use for the contract (DPDP); contract and legal obligation (GDPR) | Account life |
 | Content | Prompts, lyrics, settings, songs, edits | User; generated | Provide the service; provenance | Consent for the service; contract | Account life; ledger see section 6 |
 | Provenance | Ledger events with user ID and timestamps | System | Prove origin and AI labelling (COMP-IN-02) | Legal obligation and legal claims | See section 6 |
@@ -24,6 +24,7 @@ The product processes personal data at scale, uses AI on user-provided text, kee
 | Technical | IP address, device fingerprint, user agent, logs | System | Security, abuse prevention | Legitimate use (security) | 30 days logs; fingerprints account life |
 | Analytics | Product events | System | Improve product | Consent (opt-in) | 12 months, then aggregated |
 | Training opt-in | Flag and the user's songs | User | Improve models only if opted in (DEC-009) | Explicit consent | Until withdrawn |
+| Sign-in records (US-009) | Keyed hash (HMAC) of each one-time code and of the requesting IP address; SHA-256 of each session token; Google sign-in state for 10 minutes | System | Sign-in, rate limits against code guessing (TM-01), sessions (TM-02) | Legitimate use (security) | Codes 1 day; sessions until they expire (at most 14 days) or 30 days unused; deleted hourly by a scheduled job |
 | Waitlist (pre-launch, US-007) | Email, country, language, chosen use case, source channel, price variant shown, consent version, 18+ confirmation | User; country from the edge | Tell people when the beta opens; price research (EXP-02) | Consent (DPDP and GDPR) | Until 6 months after public launch, or sooner on request [A, counsel to confirm] |
 | Waitlist visit counts | Day, country, price variant, source channel, count. No identifiers | System | Visit-to-sign-up rate for EXP-02 | Not personal data | Until EXP-02 is closed |
 | Support and reports | Messages, takedown notices | User; third parties | Support, legal process | Legal obligation; legitimate use | 3 years (to confirm) |

@@ -57,12 +57,41 @@ developer**.
 
 - [x] Branch protection on `main`, via the GitHub ruleset (2026-10-31).
 
-## Sprint 1: first song end to end in staging
+## Sprint 1: first song end to end in staging (code runs locally; these steps make it staging)
 
 - [ ] **US-008 creator interviews** (Founder): hold 20 interviews with the script and log the
       answers.
 - [ ] **US-009 sign-in** (Founder): create the Google OAuth client for staging and production, and
       an email-sending account for sign-in codes; add their keys as secrets.
+  1. Google Cloud console: OAuth client of type "Web application", redirect URI
+     `https://<domain>/v1/auth/google/callback`. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+     and `GOOGLE_REDIRECT_URI` on the API.
+  2. Pick the email provider (INT-12, free tier). Any developer then adds its `EmailSender`
+     (one small class next to `LogEmailSender`) and its key.
+  3. Any developer: in staging and production set `BEATMIND_AUTH_PEPPER` (a random secret of at
+     least 32 characters), `BEATMIND_ADMIN_EMAILS`, `BEATMIND_WEB_ORIGIN`, and keep
+     `BEATMIND_AUTH_DEV_CODES` off and `BEATMIND_AUTH_COOKIE_SECURE` on (the defaults).
+- [ ] **Beta terms and privacy text** (Founder, counsel): write the beta terms and privacy policy
+      that the sign-up checkbox accepts as version `2026-11-beta`, and link them from the page.
+      Needed before anyone outside the team signs in.
+- [ ] **Real songs on a GPU, US-012** (Any developer, rented GPU)
+  1. Start the ACE-Step 1.5 server on the GPU box (`uv run acestep-api`, port 8001; see
+     `workers/bench/README.md`) behind an API key or a private network.
+  2. Run the worker with `BEATMIND_RUNNER=acestep`, `ACESTEP_URL` and `ACESTEP_API_KEY`, and set
+     `GPU_USD_PER_HOUR` on the API to the rented price so cost per song is right.
+  3. In staging, check the acceptance criterion: p95 time to playable under 60 seconds on the
+     Grafana dashboard ("Time to playable" panel).
+- [ ] **Monitoring for staging, US-004** (Founder account, then any developer)
+  1. Choose the hosted stack: Grafana Cloud free tier, or self-hosted Prometheus, Grafana and
+     Tempo on the Oracle VM.
+  2. Point Prometheus at `/actuator/prometheus` on the API, load `infra/observability/alerts.yml`
+     and import `infra/observability/grafana/dashboards/beatmind-pipeline.json`.
+  3. Set `TRACING_EXPORT_ENABLED=true` and `OTEL_TRACES_ENDPOINT` on the API, and route alerts to
+     the on-call email or chat.
+  4. Keep `/actuator/prometheus` off the public internet (only the web app's `/v1` routes are
+     public).
+- [ ] **GPU use per card** (Any developer, with the GPU box): add the NVIDIA DCGM exporter so the
+      dashboard shows GPU memory and utilisation, not only model busy time.
 
 ## Sprint 3: safe and multilingual
 
