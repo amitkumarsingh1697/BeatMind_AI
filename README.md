@@ -6,6 +6,8 @@ Your personal music generator and DJ mixer: original songs and beats from a vibe
 
 ## Documentation
 
+Non-code release tasks (accounts, keys, GPU runs, listeners, legal) are tracked in [TODO.md](TODO.md).
+
 Start at [docs/README.md](docs/README.md) for the package index, evidence rules, ID scheme and batch plan.
 
 | Area | Document |
