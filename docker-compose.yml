@@ -47,6 +47,10 @@ services:
       BEATMIND_ADMIN_EMAILS: ${BEATMIND_ADMIN_EMAILS:-admin@example.com}
       # Every local request comes from the web container's address, so the per-IP limit is raised.
       BEATMIND_AUTH_MAX_CODES_PER_IP_PER_HOUR: "1000"
+      # Same reason for the per-network song limit (US-030).
+      BEATMIND_IP_REQUESTS_PER_HOUR: "1000"
+      # Signs 15-minute download links (US-026). Local only; staging and production get a secret.
+      BEATMIND_DOWNLOAD_SECRET: local-only-download-secret
       BEATMIND_WEB_ORIGIN: http://localhost:3000
       # Google sign-in stays off unless you set these (see TODO.md, Sprint 1).
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -83,6 +87,9 @@ services:
       S3_REGION: us-east-1
       S3_BUCKET: beatmind-audio
       S3_CREATE_BUCKET: "true"
+      # Every take gets a watermark, AI-label tags and a C2PA manifest (REQ-F-30). Without
+      # C2PA_SIGN_CERT and C2PA_SIGN_KEY the worker signs with a throwaway development certificate.
+      BEATMIND_FINISHING: "on"
     depends_on:
       api:
         condition: service_started

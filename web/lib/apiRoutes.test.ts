@@ -22,3 +22,23 @@ test("refuses anything else", () => {
   assert.ok(!isAllowed("GET", "../actuator/health"));
   assert.ok(!isAllowed("GET", "pricing/extra"));
 });
+
+test("forwards the Sprint 2 library, download and admin calls", () => {
+  assert.ok(isAllowed("GET", "songs"));
+  assert.ok(isAllowed("PATCH", `songs/${ID}`));
+  assert.ok(isAllowed("DELETE", `songs/${ID}`));
+  assert.ok(isAllowed("GET", `songs/${ID}/takes/1/audio`));
+  assert.ok(isAllowed("POST", `songs/${ID}/takes/2/downloads`));
+  assert.ok(isAllowed("GET", "downloads/YWJj.ZGVm-_1"));
+  assert.ok(isAllowed("GET", "credits"));
+  assert.ok(isAllowed("POST", "admin/caps"));
+  assert.ok(isAllowed("GET", "admin/ledger/verify"));
+});
+
+test("refuses Sprint 2 lookalikes", () => {
+  assert.ok(!isAllowed("DELETE", "songs"));
+  assert.ok(!isAllowed("PATCH", `songs/${ID}/takes/1/audio`));
+  assert.ok(!isAllowed("GET", "downloads/no-dot"));
+  assert.ok(!isAllowed("GET", "downloads/a.b/../../admin"));
+  assert.ok(!isAllowed("GET", `songs/${ID}/takes/1/downloads`));
+});

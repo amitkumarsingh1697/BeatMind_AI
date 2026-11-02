@@ -21,3 +21,6 @@ next-env.d.ts
 *.tfstate
 *.tfstate.*
 *.tfvars
+
+# UI check screenshots (web/e2e/ui-check.mjs)
+web/e2e/screenshots/

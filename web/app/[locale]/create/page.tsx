@@ -1,21 +1,17 @@
 import { notFound } from "next/navigation";
+import AppShell from "@/components/AppShell";
 import { isLocale } from "@/lib/messages";
 import Studio from "./Studio";
 
-export const metadata = { title: "Make a song · BeatMind AI" };
+export const metadata = { title: "Create · BeatMind AI" };
 
-// Developer preview of the first song flow (Sprint 1). English only until the Hindi interface
-// lands with US-010; the Hindi route shows the same English screen for now.
+// Create screen (US-012, US-017). English only until the Hindi interface lands with US-010.
 export default async function CreatePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   return (
-    <main>
-      <header>
-        <h1>Make a song</h1>
-        <p className="soon">Developer preview. Describe a vibe and get two takes.</p>
-      </header>
+    <AppShell locale={locale}>
       <Studio locale={locale} />
-    </main>
+    </AppShell>
   );
 }
