@@ -32,7 +32,7 @@ class SessionCookieFilter extends OncePerRequestFilter {
                 .flatMap(users::find)
                 .ifPresent(user -> {
                     boolean admin = props.isAdmin(user.email());
-                    var principal = new CurrentUser(user.id(), user.email(), user.profileComplete(), admin);
+                    var principal = new CurrentUser(user.id(), user.email(), user.profileComplete(), admin, user.plan());
                     var authorities = admin
                             ? List.of(new SimpleGrantedAuthority("ROLE_USER"), new SimpleGrantedAuthority("ROLE_ADMIN"))
                             : List.of(new SimpleGrantedAuthority("ROLE_USER"));

@@ -1,4 +1,4 @@
-package ai.beatmind.waitlist;
+package ai.beatmind.botcheck;
 
 import java.util.Map;
 import org.slf4j.Logger;
@@ -12,7 +12,7 @@ import org.springframework.web.client.RestClientException;
 
 /** Cloudflare Turnstile bot check (ARCH-09, TM-11). Disabled when no secret is configured. */
 @Component
-class TurnstileVerifier {
+public class TurnstileVerifier {
 
     private static final Logger log = LoggerFactory.getLogger(TurnstileVerifier.class);
     private static final String VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
@@ -20,7 +20,7 @@ class TurnstileVerifier {
     private final String secret;
     private final RestClient http;
 
-    TurnstileVerifier(@Value("${beatmind.turnstile.secret:}") String secret) {
+    public TurnstileVerifier(@Value("${beatmind.turnstile.secret:}") String secret) {
         this.secret = secret;
         this.http = RestClient.create();
         if (secret.isBlank()) {
@@ -28,7 +28,7 @@ class TurnstileVerifier {
         }
     }
 
-    boolean verify(String token, String remoteIp) {
+    public boolean verify(String token, String remoteIp) {
         if (secret.isBlank()) {
             return true;
         }

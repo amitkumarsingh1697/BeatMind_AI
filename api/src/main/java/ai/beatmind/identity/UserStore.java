@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 class UserStore {
 
-    record User(UUID id, String email, String googleSub, LocalDate birthMonth, String termsVersion) {
+    record User(UUID id, String email, String googleSub, LocalDate birthMonth, String termsVersion, String plan) {
         boolean profileComplete() {
             return birthMonth != null && termsVersion != null;
         }
@@ -25,7 +25,7 @@ class UserStore {
     }
 
     Optional<User> find(UUID id) {
-        return jdbc.sql("SELECT id, email, google_sub, birth_month, terms_version FROM app_user WHERE id = :id")
+        return jdbc.sql("SELECT id, email, google_sub, birth_month, terms_version, plan FROM app_user WHERE id = :id")
                 .param("id", id)
                 .query(UserStore::map)
                 .optional();
@@ -43,7 +43,7 @@ class UserStore {
                 .param("email", normalized)
                 .param("locale", locale)
                 .update();
-        return jdbc.sql("SELECT id, email, google_sub, birth_month, terms_version FROM app_user WHERE lower(email) = :email")
+        return jdbc.sql("SELECT id, email, google_sub, birth_month, terms_version, plan FROM app_user WHERE lower(email) = :email")
                 .param("email", normalized)
                 .query(UserStore::map)
                 .single();
@@ -55,7 +55,7 @@ class UserStore {
      */
     @Transactional
     User upsertByGoogle(String sub, String email, String locale) {
-        Optional<User> bySub = jdbc.sql("SELECT id, email, google_sub, birth_month, terms_version FROM app_user WHERE google_sub = :sub")
+        Optional<User> bySub = jdbc.sql("SELECT id, email, google_sub, birth_month, terms_version, plan FROM app_user WHERE google_sub = :sub")
                 .param("sub", sub)
                 .query(UserStore::map)
                 .optional();
@@ -67,7 +67,7 @@ class UserStore {
         if (user.googleSub() == null) {
             jdbc.sql("UPDATE app_user SET google_sub = :sub WHERE id = :id").param("sub", sub).param("id", user.id()).update();
         }
-        return new User(user.id(), user.email(), sub, user.birthMonth(), user.termsVersion());
+        return new User(user.id(), user.email(), sub, user.birthMonth(), user.termsVersion(), user.plan());
     }
 
     /** Stores the birth month only; the day was needed just for the 18+ check. */
@@ -94,6 +94,7 @@ class UserStore {
                 rs.getString("email"),
                 rs.getString("google_sub"),
                 rs.getObject("birth_month", LocalDate.class),
-                rs.getString("terms_version"));
+                rs.getString("terms_version"),
+                rs.getString("plan"));
     }
 }

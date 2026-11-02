@@ -77,6 +77,19 @@ beatmind:
     # two takes at up to US$0.006 each at beta utilisation).
     gpu-usd-per-hour: ${GPU_USD_PER_HOUR:0.40}
     ceiling-usd-per-song: ${COST_CEILING_USD_PER_SONG:0.012}
+  entitlements:
+    # US-030 and US-026. One credit is one take; a song request makes two takes.
+    # Free daily credits is only the starting value: admins change it at /admin (REQ-F-55).
+    free-daily-credits: ${BEATMIND_FREE_DAILY_CREDITS:20}
+    # Paid allowances are placeholders until pricing fixes them (entitlement matrix).
+    creator-monthly-credits: ${BEATMIND_CREATOR_MONTHLY_CREDITS:600}
+    pro-monthly-credits: ${BEATMIND_PRO_MONTHLY_CREDITS:2000}
+    user-requests-per-ten-minutes: ${BEATMIND_USER_REQUESTS_PER_10_MINUTES:6}
+    ip-requests-per-hour: ${BEATMIND_IP_REQUESTS_PER_HOUR:60}
+    day-zone: Asia/Kolkata
+    download-link-ttl: 15m
+    # Key that signs download links. Set in staging and production (TODO.md).
+    download-secret: ${BEATMIND_DOWNLOAD_SECRET:}
   turnstile:
     # Cloudflare Turnstile secret. Blank disables the bot check (local development only).
     secret: ${TURNSTILE_SECRET:}

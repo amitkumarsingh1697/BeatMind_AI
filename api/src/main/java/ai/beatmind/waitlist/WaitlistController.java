@@ -1,5 +1,6 @@
 package ai.beatmind.waitlist;
 
+import ai.beatmind.botcheck.TurnstileVerifier;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
