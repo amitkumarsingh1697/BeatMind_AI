@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 
 import boto3
+from botocore.exceptions import ClientError
 
 
 class ObjectStore:
@@ -20,9 +21,14 @@ class ObjectStore:
 
     def ensure_bucket(self) -> None:
         """Creates the bucket if missing. Local development only; cloud buckets come from OpenTofu."""
-        existing = {b["Name"] for b in self.client.list_buckets().get("Buckets", [])}
-        if self.bucket not in existing:
-            self.client.create_bucket(Bucket=self.bucket)
+        try:
+            existing = {b["Name"] for b in self.client.list_buckets().get("Buckets", [])}
+            if self.bucket not in existing:
+                self.client.create_bucket(Bucket=self.bucket)
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code")
+            if code not in ("BucketAlreadyOwnedByYou", "BucketAlreadyExists"):
+                raise
 
     def put(self, key: str, data: bytes, content_type: str) -> str:
         self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
