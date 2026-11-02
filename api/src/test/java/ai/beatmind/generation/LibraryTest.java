@@ -71,7 +71,7 @@ class LibraryTest extends SongApiSupport {
                         .content("{\"title\":\"सुबह की दौड़\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("सुबह की दौड़"))
-                .andExpect(jsonPath("$.titleLatin").value("subaha ki daura"));
+                .andExpect(jsonPath("$.titleLatin").value("subah ki daur"));
         assertFinds("subah", englishSong);
         mvc.perform(patch("/v1/songs/" + englishSong).cookie(kabir).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"  \"}"))

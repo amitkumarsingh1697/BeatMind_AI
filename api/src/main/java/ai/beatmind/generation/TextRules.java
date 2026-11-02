@@ -18,6 +18,9 @@ final class TextRules {
     private static final Normalizer2 NFC = Normalizer2.getNFCInstance();
     private static final ThreadLocal<Transliterator> TO_LATIN = ThreadLocal.withInitial(
             () -> Transliterator.getInstance("Any-Latin; Latin-ASCII"));
+    private static final ThreadLocal<Transliterator> DEVANAGARI = ThreadLocal.withInitial(
+            () -> Transliterator.getInstance("Devanagari-Latin"));
+    private static final Pattern DEVANAGARI_WORD = Pattern.compile("[\\u0900-\\u097F]+");
     private static final Pattern NOT_WORD = Pattern.compile("[^\\p{L}\\p{N}]+");
     private static final Pattern REPEATS = Pattern.compile("(.)\\1+");
 
@@ -62,9 +65,34 @@ final class TextRules {
         };
     }
 
-    /** Latin-script form of a title, for search, file names and screen readers without Hindi. */
+    /**
+     * Latin-script form of a title, for search, file names and screen readers without Hindi.
+     * Devanagari words are written the way Hinglish writers spell them: the final inherent vowel is
+     * dropped, long vowels inside a word are doubled ("रात का सफ़र" becomes "raat ka safar").
+     */
     static String latin(String s) {
-        return TO_LATIN.get().transliterate(s).strip();
+        var m = DEVANAGARI_WORD.matcher(s);
+        StringBuilder out = new StringBuilder();
+        while (m.find()) {
+            m.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(hinglish(m.group())));
+        }
+        m.appendTail(out);
+        return TO_LATIN.get().transliterate(out.toString()).strip();
+    }
+
+    private static String hinglish(String word) {
+        String w = DEVANAGARI.get().transliterate(word);
+        char last = word.charAt(word.length() - 1);
+        boolean endsInConsonant = (last >= '\u0915' && last <= '\u0939') || (last >= '\u0958' && last <= '\u095F')
+                || (last == '\u093C' && word.length() > 1);
+        if (endsInConsonant && word.length() > 1 && w.endsWith("a")) {
+            w = w.substring(0, w.length() - 1);
+        }
+        w = w.replace("m̐", "n").replace("ṁ", "n").replace("ṃ", "n").replace("ś", "sh").replace("ṣ", "sh")
+                .replaceAll("c(?!h)", "ch");
+        // Long a inside a word reads as "aa"; at the end as "a" (कā -> ka).
+        w = w.replaceAll("ā(?=\\p{L})", "aa").replace("ā", "a");
+        return w;
     }
 
     /**

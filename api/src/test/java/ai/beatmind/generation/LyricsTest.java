@@ -92,7 +92,7 @@ class LyricsTest extends SongApiSupport {
                 .single();
         assertThat(row[0]).isEqualTo("café song");
         assertThat(row[1]).isEqualTo("रात का सफ़र");
-        assertThat(row[2]).isEqualTo("rata ka safara");
+        assertThat(row[2]).isEqualTo("raat ka safar");
         assertThat(row[3]).isEqualTo("en");
         // Human inputs are in the ledger as hashes, not as text.
         String events = jdbc.sql("SELECT string_agg(type || ':' || actor, ',' ORDER BY seq) FROM provenance_event WHERE song_id = :id")

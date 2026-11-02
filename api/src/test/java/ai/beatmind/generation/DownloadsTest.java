@@ -67,13 +67,13 @@ class DownloadsTest extends SongApiSupport {
                 .andExpect(jsonPath("$.quality").value("MP3, 192 kbps, personal listening"))
                 .andExpect(jsonPath("$.label").value("AI-generated"))
                 .andExpect(jsonPath("$.rights").value("Personal listening only. BeatMind owns this song."))
-                .andExpect(jsonPath("$.fileName").value("rata-ka-safara-take-1.mp3"));
+                .andExpect(jsonPath("$.fileName").value("raat-ka-safar-take-1.mp3"));
         link(free, "wav").andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("plan"));
 
         // The link works without a session (it is the permission) and serves the 192 kbps file.
         mvc.perform(get(url(free, "mp3")))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("rata-ka-safara-take-1.mp3")))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("raat-ka-safar-take-1.mp3")))
                 .andExpect(header().string("Cache-Control", "no-store"));
         org.mockito.Mockito.verify(audio, org.mockito.Mockito.atLeastOnce())
                 .open(org.mockito.ArgumentMatchers.endsWith("take-1-192.mp3"));
