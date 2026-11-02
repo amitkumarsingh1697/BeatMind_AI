@@ -1,12 +1,15 @@
-// Forwards the waitlist's API calls to the core API at runtime (API_ORIGIN), so the browser only
-// talks to one origin. Only the endpoints the waitlist needs are allowed through.
+// Forwards the browser's API calls to the core API at runtime (API_ORIGIN), so the browser only
+// talks to one origin and the session cookie stays first-party. Only the calls in lib/apiRoutes.ts
+// get through. Live status (server-sent events) and audio are streamed, not buffered.
 
-const ALLOWED = new Set(["GET pricing", "POST waitlist", "POST waitlist/visits"]);
-const FORWARDED_HEADERS = ["content-type", "cf-ipcountry", "cf-connecting-ip", "accept-language"];
+import { isAllowed } from "@/lib/apiRoutes";
+
+const FORWARDED_HEADERS = ["content-type", "cookie", "cf-ipcountry", "cf-connecting-ip", "accept-language"];
+const RETURNED_HEADERS = ["content-type", "content-length", "cache-control", "location"];
 
 async function forward(request: Request, path: string[]): Promise<Response> {
   const joined = path.join("/");
-  if (!ALLOWED.has(`${request.method} ${joined}`)) {
+  if (!isAllowed(request.method, joined)) {
     return new Response(null, { status: 404 });
   }
   const origin = process.env.API_ORIGIN ?? "http://localhost:8080";
@@ -21,11 +24,22 @@ async function forward(request: Request, path: string[]): Promise<Response> {
     headers,
     body: request.method === "GET" ? undefined : await request.text(),
     cache: "no-store",
+    redirect: "manual",
+    signal: request.signal,
   });
-  return new Response(upstream.body, {
-    status: upstream.status,
-    headers: { "content-type": upstream.headers.get("content-type") ?? "application/json" },
-  });
+  const out = new Headers();
+  for (const name of RETURNED_HEADERS) {
+    const value = upstream.headers.get(name);
+    if (value) out.set(name, value);
+  }
+  for (const cookie of upstream.headers.getSetCookie()) {
+    out.append("set-cookie", cookie);
+  }
+  if (out.get("content-type")?.startsWith("text/event-stream")) {
+    out.set("cache-control", "no-cache, no-transform");
+    out.set("x-accel-buffering", "no");
+  }
+  return new Response(upstream.body, { status: upstream.status, headers: out });
 }
 
 type Ctx = { params: Promise<{ path: string[] }> };

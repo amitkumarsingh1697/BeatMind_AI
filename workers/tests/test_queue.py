@@ -88,3 +88,32 @@ def test_stale_running_job_is_requeued(conn):
 
     assert queue.requeue_stale(conn, lease_seconds=600) == 1
     assert status(conn, job_id) == "queued"
+
+
+def timings(conn, job_id):
+    return conn.execute(
+        "SELECT started_at IS NOT NULL, finished_at IS NOT NULL FROM generation_job WHERE id = %s", (job_id,)
+    ).fetchone()
+
+
+def test_records_start_and_finish_times(conn):
+    job_id = enqueue(conn)
+    job = queue.claim(conn, "w1", ["song"])
+    assert timings(conn, job_id) == (True, False)
+
+    queue.complete(conn, job, {"takes": []})
+
+    assert timings(conn, job_id) == (True, True)
+
+
+def test_dead_job_gets_a_finish_time_but_a_retry_does_not(conn):
+    job_id = enqueue(conn, max_attempts=2)
+    queue.fail(conn, queue.claim(conn, "w1", ["song"]), "boom")
+    assert timings(conn, job_id) == (True, False)
+
+    conn.execute("UPDATE generation_job SET available_at = now() WHERE id = %s", (job_id,))
+    conn.commit()
+    queue.fail(conn, queue.claim(conn, "w1", ["song"]), "boom again")
+
+    assert status(conn, job_id) == "dead"
+    assert timings(conn, job_id) == (True, True)

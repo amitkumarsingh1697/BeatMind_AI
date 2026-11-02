@@ -1,5 +1,8 @@
 # Local development stack (US-002). Start everything:  docker compose up --build
+# Then open http://localhost:3000/en/create to sign in and make a song (Sprint 1).
 # Ports: web 3000, API 8080, PostgreSQL 5432, Valkey 6379, S3 (SeaweedFS) 8333.
+# Monitoring (US-004):  TRACING_EXPORT_ENABLED=true docker compose --profile observability up --build
+#   adds Grafana 3001, Prometheus 9090 and Jaeger 16686.
 # Credentials here are for local use only. Real secrets never go in this repository.
 
 services:
@@ -36,17 +39,44 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres:5432/beatmind
       DATABASE_USER: beatmind
       DATABASE_PASSWORD: beatmind
+      # Sign-in (US-009), local only: codes are shown in the page instead of emailed, and the
+      # cookie works over plain http. Sign in as this email to see the failed-jobs page.
+      BEATMIND_AUTH_DEV_CODES: "true"
+      BEATMIND_AUTH_COOKIE_SECURE: "false"
+      BEATMIND_AUTH_PEPPER: local-only-pepper
+      BEATMIND_ADMIN_EMAILS: ${BEATMIND_ADMIN_EMAILS:-admin@example.com}
+      # Every local request comes from the web container's address, so the per-IP limit is raised.
+      BEATMIND_AUTH_MAX_CODES_PER_IP_PER_HOUR: "1000"
+      BEATMIND_WEB_ORIGIN: http://localhost:3000
+      # Google sign-in stays off unless you set these (see TODO.md, Sprint 1).
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:3000/v1/auth/google/callback}
+      # Take audio is read from the same store the worker writes to.
+      S3_ENDPOINT: http://s3:8333
+      S3_ACCESS_KEY: local
+      S3_SECRET_KEY: local-secret
+      S3_REGION: us-east-1
+      S3_BUCKET: beatmind-audio
+      # Monitoring (US-004): JSON logs with trace ids; traces go to Jaeger when exporting is on.
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+      TRACING_EXPORT_ENABLED: ${TRACING_EXPORT_ENABLED:-false}
+      OTEL_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     ports: ["8080:8080"]
     depends_on:
       postgres:
         condition: service_healthy
 
   worker:
-    # CPU stub runner: writes a short tone instead of music, so no GPU is needed.
+    # CPU stub runner by default: writes short tones instead of music, so no GPU is needed.
+    # For real songs, run ACE-Step on a GPU box and start with
+    #   BEATMIND_RUNNER=acestep ACESTEP_URL=http://<gpu-box>:8001 docker compose up
     build: ./workers
     environment:
       DATABASE_URL: postgresql://beatmind:beatmind@postgres:5432/beatmind
-      BEATMIND_RUNNER: stub
+      BEATMIND_RUNNER: ${BEATMIND_RUNNER:-stub}
+      ACESTEP_URL: ${ACESTEP_URL:-}
+      ACESTEP_API_KEY: ${ACESTEP_API_KEY:-}
       S3_ENDPOINT: http://s3:8333
       S3_ACCESS_KEY: local
       S3_SECRET_KEY: local-secret
@@ -66,6 +96,34 @@ services:
       API_ORIGIN: http://api:8080
     ports: ["3000:3000"]
     depends_on: [api]
+
+  # Monitoring (US-004), only with --profile observability.
+  prometheus:
+    profiles: [observability]
+    image: prom/prometheus:v3.13.5
+    volumes:
+      - ./infra/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports: ["9090:9090"]
+    depends_on: [api]
+
+  jaeger:
+    profiles: [observability]
+    image: jaegertracing/jaeger:2.21.0
+    ports: ["16686:16686", "4318:4318"]
+
+  grafana:
+    profiles: [observability]
+    image: grafana/grafana:13.0.12
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/beatmind-pipeline.json
+    volumes:
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3001:3000"]
+    depends_on: [prometheus, jaeger]
 
 volumes:
   pgdata:

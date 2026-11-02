@@ -22,13 +22,61 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus
   endpoint:
     health:
       probes:
         enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+    tags:
+      service: beatmind-api
+  # US-004: metrics are scraped by Prometheus; traces go to any OTLP collector when an endpoint is
+  # set (Jaeger locally, Grafana Cloud or Tempo in staging). Blank endpoint: no trace export.
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    export:
+      enabled: ${TRACING_EXPORT_ENABLED:false}
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_TRACES_ENDPOINT:}
+  logging:
+    export:
+      otlp:
+        enabled: false
 
 beatmind:
+  auth:
+    # US-009. See AuthProperties for what each setting does. Release values are in TODO.md.
+    pepper: ${BEATMIND_AUTH_PEPPER:}
+    dev-codes: ${BEATMIND_AUTH_DEV_CODES:false}
+    cookie-secure: ${BEATMIND_AUTH_COOKIE_SECURE:true}
+    web-origin: ${BEATMIND_WEB_ORIGIN:http://localhost:3000}
+    admin-emails: ${BEATMIND_ADMIN_EMAILS:}
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+      redirect-uri: ${GOOGLE_REDIRECT_URI:}
+  storage:
+    endpoint: ${S3_ENDPOINT:}
+    bucket: ${S3_BUCKET:beatmind-audio}
+    access-key: ${S3_ACCESS_KEY:}
+    secret-key: ${S3_SECRET_KEY:}
+    region: ${S3_REGION:auto}
+  cost:
+    # REQ-NFR-07: price of the GPU the workers run on, and the per-song ceiling (TDD section 9.1:
+    # two takes at up to US$0.006 each at beta utilisation).
+    gpu-usd-per-hour: ${GPU_USD_PER_HOUR:0.40}
+    ceiling-usd-per-song: ${COST_CEILING_USD_PER_SONG:0.012}
   turnstile:
     # Cloudflare Turnstile secret. Blank disables the bot check (local development only).
     secret: ${TURNSTILE_SECRET:}

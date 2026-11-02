@@ -30,7 +30,7 @@ def claim(conn: psycopg.Connection, worker_id: str, kinds: list[str]) -> Job | N
         """
         UPDATE generation_job
            SET status = 'running', attempts = attempts + 1,
-               locked_by = %s, locked_at = now(), updated_at = now()
+               locked_by = %s, locked_at = now(), started_at = coalesce(started_at, now()), updated_at = now()
          WHERE id = (
                 SELECT id FROM generation_job
                  WHERE status = 'queued' AND available_at <= now() AND kind = ANY(%s)
@@ -51,7 +51,7 @@ def complete(conn: psycopg.Connection, job: Job, result: dict[str, Any]) -> None
     conn.execute(
         """
         UPDATE generation_job
-           SET status = 'succeeded', result = %s, error = NULL,
+           SET status = 'succeeded', result = %s, error = NULL, finished_at = now(),
                locked_by = NULL, locked_at = NULL, updated_at = now()
          WHERE id = %s
         """,
@@ -74,10 +74,11 @@ def fail(conn: psycopg.Connection, job: Job, error: str) -> str:
         """
         UPDATE generation_job
            SET status = %s, error = %s, available_at = now() + make_interval(secs => %s),
+               finished_at = CASE WHEN %s = 'dead' THEN now() END,
                locked_by = NULL, locked_at = NULL, updated_at = now()
          WHERE id = %s
         """,
-        (status, error[:2000], delay, job.id),
+        (status, error[:2000], delay, status, job.id),
     )
     conn.commit()
     return status
@@ -89,6 +90,7 @@ def requeue_stale(conn: psycopg.Connection, lease_seconds: int) -> int:
         """
         UPDATE generation_job
            SET status = CASE WHEN attempts >= max_attempts THEN 'dead' ELSE 'queued' END,
+               finished_at = CASE WHEN attempts >= max_attempts THEN now() END,
                error = 'worker lease expired', locked_by = NULL, locked_at = NULL, updated_at = now()
          WHERE status = 'running' AND locked_at < now() - make_interval(secs => %s)
         """,

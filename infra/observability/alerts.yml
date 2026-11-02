@@ -1,0 +1,38 @@
+# SLO and cost alerts (US-004, REQ-F-01, REQ-NFR-07). Thresholds come from the PRD and TDD 9.1.
+groups:
+  - name: beatmind-slo
+    rules:
+      - alert: TimeToPlayableAboveSlo
+        expr: beatmind_time_to_playable_seconds{quantile="0.95"} > 60
+        for: 15m
+        labels: { severity: page }
+        annotations:
+          summary: "p95 time from request to two playable takes is above 60 s (REQ-F-01)"
+      - alert: QueueBackingUp
+        expr: beatmind_queue_oldest_waiting_seconds > 120
+        for: 5m
+        labels: { severity: page }
+        annotations:
+          summary: "A song has waited more than 2 minutes for a worker; add GPU capacity or check workers"
+      - alert: DeadLetteredJobs
+        expr: beatmind_queue_jobs{status="dead"} > 0
+        for: 1m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Jobs failed every retry; see /en/admin/jobs"
+      - alert: ApiErrorRateHigh
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5..", uri!~"/actuator.*"}[5m]))
+            / clamp_min(sum(rate(http_server_requests_seconds_count{uri!~"/actuator.*"}[5m])), 1e-9) > 0.02
+        for: 10m
+        labels: { severity: page }
+        annotations:
+          summary: "More than 2% of API requests are failing"
+  - name: beatmind-cost
+    rules:
+      - alert: CostPerSongAboveCeiling
+        expr: beatmind_cost_per_song_usd > on() group_left beatmind_cost_per_song_ceiling_usd
+        for: 30m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Average model cost per song today is above the financial model's ceiling (REQ-NFR-07)"

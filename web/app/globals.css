@@ -47,3 +47,28 @@ button {
 }
 button:disabled { opacity: 0.6; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* Song studio (Sprint 1 developer preview) */
+textarea, input[type="date"], input[inputmode="numeric"] {
+  font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid #3a4a69;
+  background: #0f1724; color: var(--text); min-height: 44px; width: 100%;
+}
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+.over { color: #ff8a80; font-size: 0.95rem; }
+.dev { color: var(--focus); font-size: 0.95rem; }
+.who { color: var(--muted); }
+button.link { background: none; color: var(--focus); text-decoration: underline; min-height: 0; padding: 0; font-weight: 400; }
+.button-link {
+  display: inline-block; padding: 12px 16px; border-radius: 8px; border: 1px solid #3a4a69;
+  text-decoration: none; color: var(--text); min-height: 48px;
+}
+.songs { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+.song { border: 1px solid #2c3a55; border-radius: 10px; padding: 12px 16px; }
+.song .prompt { margin: 0 0 4px; overflow-wrap: anywhere; }
+.song .status { margin: 0 0 8px; color: var(--muted); }
+.song figure { margin: 8px 0 0; }
+.song audio { width: 100%; }
+.ai-label {
+  font-size: 0.8rem; border: 1px solid var(--muted); border-radius: 4px; padding: 0 6px; margin-left: 6px;
+  color: var(--muted);
+}

@@ -11,20 +11,35 @@ import time
 import psycopg
 
 from beatmind_workers import queue, stub
+from beatmind_workers.acestep import AceStepRunner, FetchedTake
 from beatmind_workers.storage import ObjectStore
 
 log = logging.getLogger("beatmind.worker")
 
+TAKES_PER_REQUEST = 2  # REQ-F-05
+CONTENT_TYPES = {"wav": "audio/wav", "mp3": "audio/mpeg"}
 
-def run_job(job: queue.Job, store: ObjectStore, runner: str) -> dict:
-    if runner != "stub":
-        raise NotImplementedError(
-            f"runner {runner!r} is not available yet; the ACE-Step runner lands in Sprint 1"
-        )
-    prompt = str(job.payload.get("prompt", ""))
-    audio = stub.render_tone(prompt)
-    key = store.put(f"takes/{job.id}/take-1.wav", audio, "audio/wav")
-    return {"takes": [{"key": key, "format": "wav", "runner": runner}]}
+
+def render(job: queue.Job, runner: str, acestep: AceStepRunner | None) -> list[FetchedTake]:
+    """Makes the takes for a job with the configured runner."""
+    takes = int(job.payload.get("takes", TAKES_PER_REQUEST))
+    if runner == "stub":
+        prompt = str(job.payload.get("prompt", ""))
+        return [FetchedTake(stub.render_tone(f"{prompt}#take{i}"), "wav") for i in range(1, takes + 1)]
+    if runner == "acestep" and acestep is not None:
+        return acestep.render(job.payload)
+    raise ValueError(f"unknown runner {runner!r}; use stub or acestep")
+
+
+def run_job(job: queue.Job, store: ObjectStore, runner: str, acestep: AceStepRunner | None = None) -> dict:
+    """Renders and stores every take, then returns the result the API reads (GenerationStore)."""
+    stored = []
+    for i, take in enumerate(render(job, runner, acestep), start=1):
+        key = store.put(f"takes/{job.id}/take-{i}.{take.format}", take.data, CONTENT_TYPES[take.format])
+        stored.append({"key": key, "format": take.format, "runner": runner})
+    if not stored:
+        raise RuntimeError("runner returned no takes")
+    return {"takes": stored}
 
 
 def main() -> None:
@@ -35,6 +50,9 @@ def main() -> None:
     lease = int(os.environ.get("BEATMIND_LEASE_SECONDS", "600"))
     idle_sleep = float(os.environ.get("BEATMIND_IDLE_SLEEP", "1.0"))
     worker_id = f"{socket.gethostname()}:{os.getpid()}"
+    acestep = None
+    if runner == "acestep":
+        acestep = AceStepRunner(os.environ["ACESTEP_URL"], os.environ.get("ACESTEP_API_KEY", ""))
     store = ObjectStore()
     if os.environ.get("S3_CREATE_BUCKET") == "true":
         store.ensure_bucket()
@@ -58,7 +76,7 @@ def main() -> None:
                 continue
             started = time.monotonic()
             try:
-                result = run_job(job, store, runner)
+                result = run_job(job, store, runner, acestep)
             except Exception as exc:  # noqa: BLE001 - any model failure is recorded on the job
                 status = queue.fail(conn, job, f"{type(exc).__name__}: {exc}")
                 log.warning("job %s failed (attempt %d, now %s): %s", job.id, job.attempts, status, exc)

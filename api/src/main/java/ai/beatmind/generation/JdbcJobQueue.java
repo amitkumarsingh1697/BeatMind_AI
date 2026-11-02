@@ -15,16 +15,17 @@ class JdbcJobQueue implements JobQueue {
     }
 
     @Override
-    public UUID enqueue(Kind kind, String payloadJson, int priority) {
+    public UUID enqueue(Kind kind, String payloadJson, int priority, UUID ownerId) {
         UUID id = UUID.randomUUID();
         jdbc.sql("""
-                INSERT INTO generation_job (id, kind, priority, payload)
-                VALUES (:id, :kind, :priority, CAST(:payload AS jsonb))
+                INSERT INTO generation_job (id, kind, priority, payload, user_id)
+                VALUES (:id, :kind, :priority, CAST(:payload AS jsonb), :owner)
                 """)
                 .param("id", id)
                 .param("kind", kind.name().toLowerCase(Locale.ROOT))
                 .param("priority", priority)
                 .param("payload", payloadJson)
+                .param("owner", ownerId)
                 .update();
         return id;
     }

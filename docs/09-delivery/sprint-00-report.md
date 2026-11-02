@@ -5,7 +5,7 @@
 | Sprint | SPRINT-00, started early on 2026-10-29 (planned 2 to 13 November) |
 | Goal | Foundations and risk spikes: can the model do Hindi cheaply? |
 | Points | 22 planned |
-| Status | Code and kits done. US-005 and US-006 need a rented GPU and three listeners to produce their results. |
+| Status | **Closed on 2026-11-01.** All code and kits are done. The founder decided that work outside the code (GPU runs, cloud accounts, domain, listeners, legal) is deferred to [TODO.md](../../TODO.md) and done in one go before a real release. |
 
 ## Stories
 
@@ -35,7 +35,21 @@
   - TDD and ADR-002 now name Spring Boot 4.1;
   - the RTM marks TC-REQ-F-40-01 as written.
 
-## Needs the founder
+## Closure
+
+Sprint 0 is closed as code-complete on 2026-11-01. The steps below were moved to
+[TODO.md](../../TODO.md) under "Sprint 0", so they no longer block the sprint. Branch protection
+(item 1) has since been turned on. Two of the deferred items carry product risk until they are done,
+and Sprint 1 was built so they can run later without code changes:
+
+- **US-005 benchmark and US-006 Hindi spike:** we still do not know the GPU cost per take or
+  whether ACE-Step sings Hindi well enough. The Sprint 1 ACE-Step runner uses the same settings as
+  the benchmark kit, so the results apply directly.
+- **Song quality remake loop:** paused until the app is built, by the founder's decision.
+
+Next: [Sprint 1 report](sprint-01-report.md).
+
+## Needs the founder (moved to TODO.md)
 
 1. **Turn on branch protection for `main`**. In GitHub, go to Settings, then Branches, and add a rule. Require pull requests and the CI checks to pass.
 2. **Rent a GPU for about 3 hours** and run the benchmark, following `workers/bench/README.md`. Any developer can do this.
