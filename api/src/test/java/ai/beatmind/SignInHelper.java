@@ -15,7 +15,7 @@ public final class SignInHelper {
 
     /** Removes all accounts, sessions, codes and jobs. */
     public static void reset(JdbcClient jdbc) {
-        jdbc.sql("TRUNCATE generation_job, user_session, email_code, oauth_state, admin_audit, app_user CASCADE").update();
+        jdbc.sql("TRUNCATE generation_job, song, take, provenance_event, credit_ledger, app_setting, user_session, email_code, oauth_state, admin_audit, app_user CASCADE").update();
     }
 
     public static String devCode(MockMvc mvc, String email) throws Exception {

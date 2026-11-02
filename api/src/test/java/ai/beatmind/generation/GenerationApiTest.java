@@ -19,6 +19,7 @@ import java.io.ByteArrayInputStream;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -39,6 +40,9 @@ class GenerationApiTest {
 
     @Autowired
     JdbcClient jdbc;
+
+    @Autowired
+    JobFinalizer finalizer;
 
     @MockitoBean
     AudioStore audio;
@@ -89,10 +93,14 @@ class GenerationApiTest {
     }
 
     @Test
-    void onlyTwoSongsInProgressAtOnce() throws Exception {
+    @Tag("TC-REQ-F-55-01")
+    void concurrencyFollowsThePlan() throws Exception {
         create(asha, "one").andExpect(status().isAccepted());
-        create(asha, "two").andExpect(status().isAccepted());
+        create(asha, "two").andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("concurrency"));
 
+        jdbc.sql("UPDATE app_user SET plan = 'creator' WHERE email = 'asha@example.com'").update();
+        create(asha, "two").andExpect(status().isAccepted());
         create(asha, "three").andExpect(status().isTooManyRequests());
     }
 
@@ -116,7 +124,7 @@ class GenerationApiTest {
         mvc.perform(get("/v1/generations/" + id).cookie(asha))
                 .andExpect(jsonPath("$.status").value("succeeded"))
                 .andExpect(jsonPath("$.takes.length()").value(2))
-                .andExpect(jsonPath("$.takes[1].audioUrl").value("/v1/generations/" + id + "/takes/2/audio"));
+                .andExpect(jsonPath("$.takes[1].audioUrl").value(org.hamcrest.Matchers.endsWith("/takes/2/audio")));
         mvc.perform(get("/v1/generations/" + id + "/takes/2/audio").cookie(asha))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("audio/wav"))
@@ -157,6 +165,7 @@ class GenerationApiTest {
         String id = createdId(asha, "will fail");
         jdbc.sql("UPDATE generation_job SET status = 'dead', attempts = 3, error = 'RuntimeError: CUDA out of memory' WHERE id = :id")
                 .param("id", UUID.fromString(id)).update();
+        finalizer.runOnce();
 
         mvc.perform(get("/v1/generations/" + id).cookie(asha))
                 .andExpect(jsonPath("$.status").value("failed"))
@@ -197,5 +206,6 @@ class GenerationApiTest {
                                   {"key":"takes/%1$s/take-2.wav","format":"wav"}],"seconds":4.2}
                         """.formatted(id))
                 .update();
+        finalizer.runOnce();
     }
 }

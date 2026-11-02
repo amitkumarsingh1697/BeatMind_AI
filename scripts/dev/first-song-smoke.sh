@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Sprint 1 end-to-end check against a running local stack (docker compose up): sign in with an
-# email code, pass the 18+ step, ask for a song, wait for it over the live event stream, and fetch
-# both takes. Goes through the web app's forwarder, as a browser would.
+# End-to-end check against a running local stack (docker compose up): sign in with an email code,
+# pass the 18+ step, ask for a song, wait for it over the live event stream, fetch both takes
+# (Sprint 1), then find it in the library, download the labelled MP3 through a signed link and
+# check its provenance chain (Sprint 2). Goes through the web app's forwarder, as a browser would.
 #
 #   scripts/dev/first-song-smoke.sh [base-url]     # default http://localhost:3000
 set -euo pipefail
@@ -36,4 +37,23 @@ for n in 1 2; do
   echo "   take $n: $bytes bytes"
   [ "$bytes" -gt 1000 ]
 done
+
+echo "6. Find the song in the library"
+song=$(json "$BASE/v1/generations/$id" | sed -n 's/.*"songId":"\([^"]*\)".*/\1/p')
+json "$BASE/v1/songs?q=monsoon" | grep -q "\"id\":\"$song\""
+echo "   song $song"
+
+echo "7. Download the labelled MP3 through a signed link"
+url=$(json -d '{"format":"mp3"}' "$BASE/v1/songs/$song/takes/1/downloads" | sed -n 's/.*"url":"\([^"]*\)".*/\1/p')
+file="$(mktemp)"
+curl -fsS -o "$file" "$BASE$url"
+head -c 3 "$file" | grep -q ID3 || { echo "download is not an MP3 with ID3 tags"; exit 1; }
+grep -aq "Made with BeatMind AI" "$file" || { echo "AI label missing from the file"; exit 1; }
+grep -aq "c2pa" "$file" || { echo "C2PA manifest missing from the file"; exit 1; }
+echo "   $(wc -c <"$file") bytes, AI label and C2PA manifest present"
+rm -f "$file"
+
+echo "8. Check the provenance chain"
+json "$BASE/v1/songs/$song/provenance" | grep -q '"valid":true'
+echo "   chain verifies"
 echo "First song end to end: OK"

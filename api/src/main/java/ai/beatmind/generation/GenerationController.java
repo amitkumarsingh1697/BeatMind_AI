@@ -1,21 +1,18 @@
 package ai.beatmind.generation;
 
+import ai.beatmind.botcheck.TurnstileVerifier;
+import ai.beatmind.identity.ClientFingerprint;
 import ai.beatmind.identity.CurrentUser;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import java.text.BreakIterator;
-import java.time.Duration;
-import java.util.LinkedHashMap;
+import jakarta.validation.constraints.Size;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -27,72 +24,75 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import tools.jackson.databind.json.JsonMapper;
 
-/** Song generation (US-012): API-001 create, API-002 status and live events, and take audio. */
+/** Song generation (US-012, US-017): API-001 create, API-002 status and live events. */
 @RestController
 class GenerationController {
 
-    static final int MAX_PROMPT_GRAPHEMES = 500;
-    static final int TAKES_PER_REQUEST = 2;
-    static final int MAX_ACTIVE_JOBS = 2;
-
     /**
-     * A song request. Custom lyrics arrive with US-017 (Sprint 2) and Beat mode with US-015.
+     * A song request. Vibe mode needs a description; lyrics mode (US-017) needs lyrics, and the
+     * prompt is then the style. Beat mode arrives with US-015.
      *
+     * @param mode vibe or lyrics (default vibe)
+     * @param prompt vibe: what the song should feel like; lyrics: the style. Up to 500 characters.
+     * @param lyrics up to 3,000 characters in Hindi, Hinglish or English (REQ-F-02)
+     * @param title optional, up to 100 characters; made from the lyrics or description if blank
      * @param language vocal language: en, hi or hinglish
+     * @param vocalType female, male, duet or any
      * @param durationSeconds song length, 30 to 240 seconds
+     * @param turnstileToken Cloudflare Turnstile token when the bot check is on (REQ-SEC-09)
      */
     record CreateRequest(
             @Pattern(regexp = "song", message = "only song is available for now") String kind,
-            @NotBlank String prompt,
+            @Pattern(regexp = "vibe|lyrics") String mode,
+            @Size(max = 4000) String prompt,
+            @Size(max = 30000) String lyrics,
+            @Size(max = 1000) String title,
             @Pattern(regexp = "en|hi|hinglish") String language,
+            @Pattern(regexp = "female|male|duet|any") String vocalType,
             Boolean instrumental,
-            @Min(30) @Max(240) Integer durationSeconds) {}
+            @Min(30) @Max(240) Integer durationSeconds,
+            @Size(max = 4096) String turnstileToken) {}
 
-    private final JobQueue queue;
+    private final SongRequests requests;
     private final GenerationStore store;
-    private final AudioStore audio;
     private final GenerationEvents events;
-    private final JsonMapper json;
+    private final TurnstileVerifier turnstile;
+    private final ClientFingerprint fingerprint;
     private final Counter requested;
 
-    GenerationController(JobQueue queue, GenerationStore store, AudioStore audio, GenerationEvents events,
-                         JsonMapper json, MeterRegistry meters) {
-        this.queue = queue;
+    GenerationController(SongRequests requests, GenerationStore store, GenerationEvents events,
+                         TurnstileVerifier turnstile, ClientFingerprint fingerprint, MeterRegistry meters) {
+        this.requests = requests;
         this.store = store;
-        this.audio = audio;
         this.events = events;
-        this.json = json;
+        this.turnstile = turnstile;
+        this.fingerprint = fingerprint;
         this.requested = Counter.builder("beatmind.generations.requested")
                 .description("Song requests accepted into the queue").register(meters);
     }
 
     @PostMapping("/v1/generations")
-    ResponseEntity<?> create(@Valid @RequestBody CreateRequest req) {
+    ResponseEntity<?> create(@Valid @RequestBody CreateRequest req, HttpServletRequest http) {
         CurrentUser me = CurrentUser.get().orElseThrow();
         if (!me.profileComplete()) {
-            return problem(HttpStatus.FORBIDDEN, "Add your date of birth and accept the terms before making songs.");
+            return problem(HttpStatus.FORBIDDEN, "profile", "Add your date of birth and accept the terms before making songs.");
         }
-        String prompt = req.prompt().strip();
-        if (graphemes(prompt) > MAX_PROMPT_GRAPHEMES) {
-            return problem(HttpStatus.BAD_REQUEST, "Keep the description to " + MAX_PROMPT_GRAPHEMES + " characters.");
+        if (!turnstile.verify(req.turnstileToken(), http.getRemoteAddr())) {
+            return problem(HttpStatus.FORBIDDEN, "bot_check", "We could not confirm you are a person. Reload the page and try again.");
         }
-        if (store.active(me.id()) >= MAX_ACTIVE_JOBS) {
-            return problem(HttpStatus.TOO_MANY_REQUESTS, "Wait for your songs in progress to finish first.");
+        try {
+            SongRequests.Request checked = SongRequests.check(req.mode(), req.prompt(), req.lyrics(), req.title(),
+                    req.language(), req.vocalType(), req.instrumental(), req.durationSeconds());
+            UUID jobId = requests.create(me, checked, fingerprint.ipHash(http)).getValue();
+            requested.increment();
+            Generation created = store.find(jobId, me.id()).orElseThrow();
+            return ResponseEntity.accepted()
+                    .location(java.net.URI.create("/v1/generations/" + jobId))
+                    .body(created);
+        } catch (SongRequests.Refusal r) {
+            return problem(r.status, r.code, r.getMessage());
         }
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("prompt", prompt);
-        payload.put("language", req.language() == null ? "en" : req.language());
-        payload.put("instrumental", Boolean.TRUE.equals(req.instrumental()));
-        payload.put("durationSeconds", req.durationSeconds() == null ? 60 : req.durationSeconds());
-        payload.put("takes", TAKES_PER_REQUEST);
-        UUID id = queue.enqueue(JobQueue.Kind.SONG, json.writeValueAsString(payload), 0, me.id());
-        requested.increment();
-        Generation created = store.find(id, me.id()).orElseThrow();
-        return ResponseEntity.accepted()
-                .location(java.net.URI.create("/v1/generations/" + id))
-                .body(created);
     }
 
     @GetMapping("/v1/generations")
@@ -114,33 +114,9 @@ class GenerationController {
         return events.stream(id, owner);
     }
 
-    @GetMapping("/v1/generations/{id}/takes/{index}/audio")
-    ResponseEntity<InputStreamResource> takeAudio(@PathVariable UUID id, @PathVariable int index) {
-        UUID owner = CurrentUser.get().orElseThrow().id();
-        AudioStore.Audio file = store.takeKey(id, owner, index)
-                .flatMap(audio::open)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        var response = ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePrivate())
-                .contentType(MediaType.parseMediaType(file.contentType()));
-        if (file.length() >= 0) {
-            response.contentLength(file.length());
-        }
-        return response.body(new InputStreamResource(file.body()));
-    }
-
-    /** User-perceived characters, so Devanagari conjuncts count once (REQ-F-08). */
-    static int graphemes(String s) {
-        BreakIterator it = BreakIterator.getCharacterInstance();
-        it.setText(s);
-        int count = 0;
-        while (it.next() != BreakIterator.DONE) {
-            count++;
-        }
-        return count;
-    }
-
-    private static ResponseEntity<ProblemDetail> problem(HttpStatus status, String detail) {
-        return ResponseEntity.status(status).body(ProblemDetail.forStatusAndDetail(status, detail));
+    static ResponseEntity<ProblemDetail> problem(HttpStatus status, String code, String detail) {
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(status, detail);
+        body.setProperty("code", code);
+        return ResponseEntity.status(status).body(body);
     }
 }

@@ -4,8 +4,17 @@
 
 import { isAllowed } from "@/lib/apiRoutes";
 
-const FORWARDED_HEADERS = ["content-type", "cookie", "cf-ipcountry", "cf-connecting-ip", "accept-language"];
-const RETURNED_HEADERS = ["content-type", "content-length", "cache-control", "location"];
+const FORWARDED_HEADERS = ["content-type", "cookie", "cf-ipcountry", "cf-connecting-ip", "accept-language", "range"];
+const RETURNED_HEADERS = [
+  "content-type",
+  "content-length",
+  "cache-control",
+  "location",
+  // Seeking in the player and file names for downloads (US-023, US-026)
+  "accept-ranges",
+  "content-range",
+  "content-disposition",
+];
 
 async function forward(request: Request, path: string[]): Promise<Response> {
   const joined = path.join("/");
@@ -22,7 +31,7 @@ async function forward(request: Request, path: string[]): Promise<Response> {
   const upstream = await fetch(`${origin}/v1/${joined}${search}`, {
     method: request.method,
     headers,
-    body: request.method === "GET" ? undefined : await request.text(),
+    body: request.method === "GET" || request.method === "DELETE" ? undefined : await request.text(),
     cache: "no-store",
     redirect: "manual",
     signal: request.signal,
@@ -49,5 +58,13 @@ export async function GET(request: Request, ctx: Ctx) {
 }
 
 export async function POST(request: Request, ctx: Ctx) {
+  return forward(request, (await ctx.params).path);
+}
+
+export async function PATCH(request: Request, ctx: Ctx) {
+  return forward(request, (await ctx.params).path);
+}
+
+export async function DELETE(request: Request, ctx: Ctx) {
   return forward(request, (await ctx.params).path);
 }

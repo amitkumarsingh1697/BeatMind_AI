@@ -4,6 +4,7 @@ import jakarta.servlet.DispatcherType;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -40,6 +41,8 @@ class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers("/v1/pricing", "/v1/waitlist", "/v1/waitlist/visits").permitAll()
                         .requestMatchers("/v1/auth/**").permitAll()
+                        // Signed links (US-026): the signature is the permission, valid 15 minutes.
+                        .requestMatchers(HttpMethod.GET, "/v1/downloads/*").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/health", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated());

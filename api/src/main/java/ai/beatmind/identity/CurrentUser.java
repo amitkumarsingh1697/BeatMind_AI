@@ -7,9 +7,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
  * The signed-in user for the current request. {@code profileComplete} is true once the user has
- * declared an adult date of birth and accepted the terms; generation needs it.
+ * declared an adult date of birth and accepted the terms; generation needs it. {@code plan} is
+ * free, creator or pro (entitlement matrix).
  */
-public record CurrentUser(UUID id, String email, boolean profileComplete, boolean admin) {
+public record CurrentUser(UUID id, String email, boolean profileComplete, boolean admin, String plan) {
 
     /** The signed-in user, if any. */
     public static Optional<CurrentUser> get() {

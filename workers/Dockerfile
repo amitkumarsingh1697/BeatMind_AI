@@ -1,5 +1,10 @@
-# CPU image for the stub runner and post-processing. The GPU image (ACE-Step) is added in Sprint 1.
+# CPU image for the stub runner and post-processing (watermark, AI label, C2PA, encoding).
 FROM python:3.12-slim
+
+# ffmpeg encodes the labelled MP3 and WAV files (finishing.py).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --uid 10001 worker
 WORKDIR /app

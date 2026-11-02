@@ -93,6 +93,26 @@ developer**.
 - [ ] **GPU use per card** (Any developer, with the GPU box): add the NVIDIA DCGM exporter so the
       dashboard shows GPU memory and utilisation, not only model busy time.
 
+## Sprint 2: labelled, provable and downloadable (code runs locally; these steps make it real)
+
+- [ ] **C2PA signing certificate, US-020** (Founder, then any developer)
+  1. Buy a document-signing certificate from a CA on the C2PA trust list (cost unknown; INT-07).
+  2. Keep the private key in a managed KMS (REQ-SEC-07); give the worker a signing identity and set
+     `C2PA_SIGN_CERT` and `C2PA_SIGN_KEY` (or replace them with a KMS signer). Until then files are
+     signed with a throwaway development certificate.
+- [ ] **AudioSeal watermark, US-020** (Any developer, rented GPU): run AudioSeal (INT-06) on the GPU
+      box in place of `workers/beatmind_workers/watermark.py`, set the payload and robustness
+      targets (TD-04), and keep `BEATMIND_WATERMARK_KEY` secret in staging and production.
+- [ ] **Hourly signed ledger digest, US-019** (Any developer, after the KMS key): sign the latest
+      hash of every song chain each hour and publish it (TM-08, ADR-010).
+- [ ] **Secrets for staging and production** (Any developer): `BEATMIND_DOWNLOAD_SECRET` (random,
+      at least 32 characters) on the API; `TURNSTILE_SECRET` now also protects song requests, so
+      set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` on the web build.
+- [ ] **Paid allowances** (Founder): fix the monthly credits for Creator and Pro (placeholders 600
+      and 2,000) and the free daily cap (20 credits, admins can change it at run time).
+- [ ] **Five quick UX tests** (Founder): first-click on Create, Hindi copy, licence panel, price
+      page and a screen-reader walkthrough (UX spec section 9), on the new design.
+
 ## Sprint 3: safe and multilingual
 
 - [ ] **US-040 G1 listening tests** (Founder): recruit at least 30 native listeners per language

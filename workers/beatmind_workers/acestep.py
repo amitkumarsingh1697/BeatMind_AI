@@ -20,6 +20,8 @@ from typing import Any
 
 # BeatMind language codes to ACE-Step vocal languages. Hinglish is sung as Hindi with Latin lyrics.
 VOCAL_LANGUAGE = {"en": "en", "hi": "hi", "hinglish": "hi"}
+# Vocal type (US-017) as words in the ACE-Step caption.
+VOCAL_STYLE = {"female": "female vocals", "male": "male vocals", "duet": "male and female duet vocals"}
 
 
 @dataclass(frozen=True)
@@ -48,13 +50,17 @@ class AceStepRunner:
         lyrics = str(payload.get("lyrics") or "")
         if payload.get("instrumental"):
             lyrics = "[Instrumental]"
+        prompt = str(payload.get("prompt", ""))
+        vocal = payload.get("vocalType")
+        if not payload.get("instrumental") and vocal in VOCAL_STYLE:
+            prompt = f"{prompt}, {VOCAL_STYLE[vocal]}" if prompt else VOCAL_STYLE[vocal]
         return {
-            "prompt": str(payload.get("prompt", "")),
+            "prompt": prompt,
             "lyrics": lyrics,
             "vocal_language": VOCAL_LANGUAGE.get(str(payload.get("language", "en")), "en"),
             "audio_duration": float(payload.get("durationSeconds", 60)),
             "batch_size": int(payload.get("takes", 2)),
-            # Let the model write lyrics when the user gave none (custom lyrics arrive in Sprint 2).
+            # Let the model write lyrics when the user gave none (vibe mode); custom lyrics are sung as given.
             "thinking": not lyrics,
             "audio_format": "mp3",
         }

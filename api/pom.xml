@@ -101,6 +101,12 @@
       <artifactId>url-connection-client</artifactId>
     </dependency>
     <dependency>
+      <!-- Grapheme counting that matches browsers for Devanagari conjuncts, NFC and transliteration (REQ-F-08). -->
+      <groupId>com.ibm.icu</groupId>
+      <artifactId>icu4j</artifactId>
+      <version>78.1</version>
+    </dependency>
+    <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-database-postgresql</artifactId>
     </dependency>

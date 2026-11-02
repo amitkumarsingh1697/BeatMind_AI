@@ -81,6 +81,7 @@ class MeController {
         body.put("email", user.email());
         body.put("needsProfile", !user.profileComplete());
         body.put("admin", props.isAdmin(user.email()));
+        body.put("plan", user.plan());
         return body;
     }
 }

@@ -55,7 +55,7 @@ class AdminJobsController {
         int updated = jdbc.sql("""
                 UPDATE generation_job
                    SET status = 'queued', attempts = 0, available_at = now(), error = NULL,
-                       finished_at = NULL, updated_at = now()
+                       finished_at = NULL, finalized_at = NULL, updated_at = now()
                  WHERE id = :id AND status = 'dead'
                 """).param("id", id).update();
         if (updated == 0) {

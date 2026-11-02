@@ -21,9 +21,24 @@ const ROUTES: [string, RegExp][] = [
   ["GET", new RegExp(`^generations/${UUID}$`)],
   ["GET", new RegExp(`^generations/${UUID}/events$`)],
   ["GET", new RegExp(`^generations/${UUID}/takes/[1-9][0-9]?/audio$`)],
+  // Library, player, downloads and credits (Sprint 2: US-022, US-023, US-026, US-027)
+  ["GET", /^songs$/],
+  ["GET", new RegExp(`^songs/${UUID}$`)],
+  ["PATCH", new RegExp(`^songs/${UUID}$`)],
+  ["DELETE", new RegExp(`^songs/${UUID}$`)],
+  ["GET", new RegExp(`^songs/${UUID}/provenance$`)],
+  ["GET", new RegExp(`^songs/${UUID}/takes/[1-9][0-9]?/audio$`)],
+  ["POST", new RegExp(`^songs/${UUID}/takes/[1-9][0-9]?/downloads$`)],
+  ["GET", /^downloads\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/],
+  ["GET", /^credits$/],
   // Dead-letter view (US-013); the API checks the admin role
   ["GET", /^admin\/jobs$/],
   ["POST", new RegExp(`^admin/jobs/${UUID}/retry$`)],
+  // Caps, plans and ledger check (US-030, US-019); the API checks the admin role
+  ["GET", /^admin\/caps$/],
+  ["POST", /^admin\/caps$/],
+  ["POST", /^admin\/users\/plan$/],
+  ["GET", /^admin\/ledger\/verify$/],
 ];
 
 export function isAllowed(method: string, path: string): boolean {

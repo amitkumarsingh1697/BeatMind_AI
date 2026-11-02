@@ -18,6 +18,10 @@ beatmind:
       redirect-uri: http://localhost:3000/v1/auth/google/callback
   generation:
     poll-every: 50ms
+    # Tests run the finalizer themselves.
+    finalize-every: 1h
   metrics:
     # Tests call refresh() themselves.
     refresh: 1h
+  entitlements:
+    download-secret: test-download-secret
