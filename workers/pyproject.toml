@@ -6,6 +6,10 @@ requires-python = ">=3.11"
 dependencies = [
     "psycopg[binary]>=3.2,<4",
     "boto3>=1.35,<2",
+    # Finishing (REQ-F-30): watermark maths, C2PA signing and development certificates.
+    "numpy>=2.0,<3",
+    "c2pa-python>=0.38,<0.39",
+    "cryptography>=44",
 ]
 
 [project.optional-dependencies]
@@ -33,4 +37,7 @@ ignore = ["S101"]
 "tests/*" = ["S"]
 
 [tool.pytest.ini_options]
-markers = ["integration: needs PostgreSQL (TEST_DATABASE_URL)"]
+markers = [
+    "integration: needs PostgreSQL (TEST_DATABASE_URL)",
+    "tc(id): RTM test case this test covers (docs/07-quality/rtm.csv)",
+]

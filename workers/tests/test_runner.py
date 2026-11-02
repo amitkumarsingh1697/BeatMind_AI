@@ -123,3 +123,19 @@ def test_acestep_failure_raises(acestep_server):
 def test_acestep_url_must_be_http():
     with pytest.raises(ValueError):
         AceStepRunner("file:///etc/passwd")
+
+
+def test_acestep_params_sing_custom_lyrics_with_the_vocal_type():
+    params = AceStepRunner.params(
+        {
+            "mode": "lyrics",
+            "prompt": "slow ballad",
+            "lyrics": "Raat ka safar",
+            "vocalType": "female",
+            "language": "hinglish",
+        }
+    )
+
+    assert params["prompt"] == "slow ballad, female vocals"
+    assert params["lyrics"] == "Raat ka safar"
+    assert params["thinking"] is False
