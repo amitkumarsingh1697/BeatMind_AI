@@ -200,7 +200,7 @@ class SongController {
         }
         SongStore.Take take = songs.take(id, index).filter(t -> "ready".equals(t.status()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        String assetName = Entitlements.assetFor(me.plan(), req.format());
+        String assetName = Entitlements.assetFor(me.plan(), song.rightsStatus(), req.format());
         if (assetName == null) {
             return GenerationController.problem(HttpStatus.FORBIDDEN, "plan",
                     "WAV downloads come with the Creator and Pro plans. Free plans download MP3.");
@@ -259,6 +259,10 @@ class SongController {
     }
 
     private ResponseEntity<Resource> stream(String key, CacheControl cache, ContentDisposition disposition) {
+        return stream(audio, key, cache, disposition);
+    }
+
+    static ResponseEntity<Resource> stream(AudioStore audio, String key, CacheControl cache, ContentDisposition disposition) {
         AudioStore.Audio file = audio.open(key).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         var response = ResponseEntity.ok()
                 .cacheControl(cache)

@@ -62,9 +62,25 @@ public class Accounts {
         jdbc.sql("""
                 UPDATE app_user
                    SET email = 'deleted+' || id || '@deleted.invalid', google_sub = NULL, birth_month = NULL,
-                       daily_cap_override = NULL, deleted_at = now()
+                       daily_cap_override = NULL, billing_country = NULL, deleted_at = now()
                  WHERE id = :id
                 """).param("id", id).update();
+    }
+
+    /** The plan the account is on: free, creator or pro. Billing sets it from payments (US-034). */
+    public void setPlan(UUID id, String plan) {
+        jdbc.sql("UPDATE app_user SET plan = :plan WHERE id = :id AND deleted_at IS NULL")
+                .param("plan", plan).param("id", id).update();
+    }
+
+    /** REQ-F-41: the country of the payment method, which decides the price. */
+    public void setBillingCountry(UUID id, String country) {
+        jdbc.sql("UPDATE app_user SET billing_country = :c WHERE id = :id").param("c", country).param("id", id).update();
+    }
+
+    public Optional<String> billingCountry(UUID id) {
+        return jdbc.sql("SELECT billing_country FROM app_user WHERE id = :id").param("id", id)
+                .query((rs, n) -> Optional.ofNullable(rs.getString(1))).optional().flatMap(o -> o);
     }
 
     /** The Set-Cookie value that signs the browser out. */

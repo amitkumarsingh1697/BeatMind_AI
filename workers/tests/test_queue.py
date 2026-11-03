@@ -117,3 +117,13 @@ def test_dead_job_gets_a_finish_time_but_a_retry_does_not(conn):
 
     assert status(conn, job_id) == "dead"
     assert timings(conn, job_id) == (True, True)
+
+
+def test_fallback_jobs_go_only_to_fallback_workers(conn):
+    """US-016: a job the API routed to the Lyria fallback is never claimed by a GPU worker."""
+    routed = enqueue(conn)
+    conn.execute("UPDATE generation_job SET provider = 'lyria' WHERE id = %s", (routed,))
+    conn.commit()
+    assert queue.claim(conn, "gpu", ["song"]) is None
+    assert queue.claim(conn, "gpu", ["song"], ["self"]) is None
+    assert queue.claim(conn, "lyria-1", ["song"], ["lyria"]).id == routed

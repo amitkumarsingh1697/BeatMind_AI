@@ -8,7 +8,7 @@ import java.util.UUID;
  */
 public interface JobQueue {
 
-    enum Kind { SONG, BEAT, LYRICS }
+    enum Kind { SONG, BEAT, LYRICS, EDIT, VERIFY }
 
     /** Queues a job with no owner (system jobs) and returns its id. */
     default UUID enqueue(Kind kind, String payloadJson, int priority) {
@@ -16,5 +16,13 @@ public interface JobQueue {
     }
 
     /** Queues a job for a user and returns its id. {@code payloadJson} must be a JSON object. */
-    UUID enqueue(Kind kind, String payloadJson, int priority, UUID ownerId);
+    default UUID enqueue(Kind kind, String payloadJson, int priority, UUID ownerId) {
+        return enqueue(kind, payloadJson, priority, ownerId, "self", null);
+    }
+
+    /**
+     * As above, for a given runner: "self" (our GPU workers) or "lyria" (the paid fallback, US-016)
+     * with its estimated cost in US dollars.
+     */
+    UUID enqueue(Kind kind, String payloadJson, int priority, UUID ownerId, String provider, java.math.BigDecimal costUsd);
 }

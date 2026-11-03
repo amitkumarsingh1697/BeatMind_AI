@@ -10,6 +10,9 @@ interface AudioStore {
 
     Optional<Audio> open(String key);
 
+    /** Stores an object (verify uploads, US-021). */
+    void put(String key, byte[] data, String contentType);
+
     /** Removes an object. Removing one that is already gone is not an error. */
     void delete(String key);
 }

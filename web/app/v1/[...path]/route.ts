@@ -4,7 +4,17 @@
 
 import { isAllowed } from "@/lib/apiRoutes";
 
-const FORWARDED_HEADERS = ["content-type", "cookie", "cf-ipcountry", "cf-connecting-ip", "accept-language", "range"];
+const FORWARDED_HEADERS = [
+  "content-type",
+  "cookie",
+  "cf-ipcountry",
+  "cf-connecting-ip",
+  "accept-language",
+  "range",
+  // Razorpay webhooks (US-034): the signature covers the raw body, so it is forwarded byte for byte
+  "x-razorpay-signature",
+  "x-razorpay-event-id",
+];
 const RETURNED_HEADERS = [
   "content-type",
   "content-length",
@@ -15,6 +25,11 @@ const RETURNED_HEADERS = [
   "content-range",
   "content-disposition",
 ];
+
+async function bodyOf(request: Request): Promise<ArrayBuffer | undefined> {
+  const bytes = await request.arrayBuffer();
+  return bytes.byteLength > 0 ? bytes : undefined;
+}
 
 async function forward(request: Request, path: string[]): Promise<Response> {
   const joined = path.join("/");
@@ -31,8 +46,9 @@ async function forward(request: Request, path: string[]): Promise<Response> {
   const upstream = await fetch(`${origin}/v1/${joined}${search}`, {
     method: request.method,
     headers,
-    // DELETE /v1/me carries a confirmation body (US-011); other DELETEs send none.
-    body: request.method === "GET" ? undefined : (await request.text()) || undefined,
+    // Bytes, not text: file uploads on the verify page are multipart (US-021) and webhook
+    // signatures cover the exact body (US-034). DELETE /v1/me carries a confirmation body (US-011).
+    body: request.method === "GET" ? undefined : await bodyOf(request),
     cache: "no-store",
     redirect: "manual",
     signal: request.signal,

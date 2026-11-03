@@ -15,7 +15,7 @@ final class SongViews {
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
     /** {@code tempoBpm}: what the tempo check measured on a beat-mode take (US-015). */
-    record TakeView(int index, String status, String audioUrl, String format, Double tempoBpm) {}
+    record TakeView(int index, String status, String audioUrl, String format, Double tempoBpm, int version) {}
 
     /**
      * A song as the library and player show it. {@code aiGenerated} and {@code label} are always
@@ -57,6 +57,7 @@ final class SongViews {
     static String rights(String rightsStatus) {
         return switch (rightsStatus) {
             case "user_owned" -> "You own this song.";
+            case "vesting" -> "You will own this song once this month's payment goes through.";
             case "free_licensed" -> "BeatMind owns this song; you may use it commercially with attribution.";
             case "disabled" -> "This song was removed after a report. Only you can see it.";
             default -> "Personal listening only. BeatMind owns this song.";
@@ -81,7 +82,7 @@ final class SongViews {
         List<TakeView> views = takes.stream()
                 .map(t -> new TakeView(t.index(), t.status(),
                         "ready".equals(t.status()) && preview(t) != null ? audioUrl(s.id(), t.index()) : null,
-                        previewFormat(t), t.tempoBpm()))
+                        previewFormat(t), t.tempoBpm(), t.version()))
                 .toList();
         if ("succeeded".equals(status) && views.stream().noneMatch(t -> t.audioUrl() != null)) {
             status = "failed";
@@ -89,7 +90,7 @@ final class SongViews {
         return new SongView(s.id(), s.title(), s.titleLatin(), s.languageTag(), s.mode(), s.prompt(), s.lyrics(),
                 s.vocalType(), s.instrumental(), s.durationSeconds(), status, s.rightsStatus(),
                 rights(s.rightsStatus()), true, AI_LABEL, views,
-                "disabled".equals(s.rightsStatus()) ? List.of() : Entitlements.formats(viewerPlan), certificateId,
+                Entitlements.formats(viewerPlan, s.rightsStatus()), certificateId,
                 s.createdAt(), beat(s.beatJson()), takedown);
     }
 }

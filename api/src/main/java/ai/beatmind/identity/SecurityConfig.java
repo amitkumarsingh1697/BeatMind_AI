@@ -49,6 +49,11 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/v1/reports").permitAll()
                         // Share links (US-024): the token is the permission; revocable.
                         .requestMatchers(HttpMethod.GET, "/v1/shared/*", "/v1/shared/*/audio").permitAll()
+                        // Payment webhooks (API-010): the HMAC signature is the permission (REQ-SEC-08).
+                        .requestMatchers(HttpMethod.POST, "/v1/webhooks/razorpay").permitAll()
+                        // Verify page (API-011, US-021): anyone, rate-limited, coarse answers only.
+                        .requestMatchers(HttpMethod.POST, "/v1/verify").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/verify/*").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/health", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated());

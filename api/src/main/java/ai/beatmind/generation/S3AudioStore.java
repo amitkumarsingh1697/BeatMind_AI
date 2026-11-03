@@ -52,6 +52,12 @@ class S3AudioStore implements AudioStore {
     }
 
     @Override
+    public void put(String key, byte[] data, String contentType) {
+        client().putObject(b -> b.bucket(bucket).key(key).contentType(contentType),
+                software.amazon.awssdk.core.sync.RequestBody.fromBytes(data));
+    }
+
+    @Override
     public void delete(String key) {
         client().deleteObject(b -> b.bucket(bucket).key(key));
     }

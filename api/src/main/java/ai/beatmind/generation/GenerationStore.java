@@ -76,13 +76,13 @@ class GenerationStore {
         Double avg = jdbc.sql("""
                 SELECT avg(extract(epoch FROM finished_at - started_at)) FROM (
                     SELECT finished_at, started_at FROM generation_job
-                     WHERE status = 'succeeded' AND kind IN ('song', 'beat') AND started_at IS NOT NULL
+                     WHERE status = 'succeeded' AND kind IN ('song', 'beat') AND provider = 'self' AND started_at IS NOT NULL
                        AND finished_at > now() - interval '1 day'
                      ORDER BY finished_at DESC LIMIT 50) recent
                 """).query(Double.class).optional().orElse(null);
         Integer workers = jdbc.sql("""
                 SELECT count(DISTINCT locked_by) FROM generation_job
-                 WHERE locked_by IS NOT NULL AND locked_at > now() - interval '10 minutes'
+                 WHERE locked_by IS NOT NULL AND provider = 'self' AND locked_at > now() - interval '10 minutes'
                 """).query(Integer.class).single();
         return new QueueStats(avg == null ? DEFAULT_RUN_SECONDS : Math.max(1, avg), Math.max(1, workers));
     }
@@ -91,12 +91,21 @@ class GenerationStore {
     int ahead(UUID id, int priority, OffsetDateTime availableAt, OffsetDateTime createdAt) {
         return jdbc.sql("""
                 SELECT count(*) FROM generation_job
-                 WHERE status IN ('queued', 'failed') AND kind IN ('song', 'beat') AND id <> :id
+                 WHERE status IN ('queued', 'failed') AND kind IN ('song', 'beat') AND provider = 'self' AND id <> :id
                    AND (priority > :priority
                         OR (priority = :priority AND (available_at, created_at) < (:available, :created)))
                 """)
                 .param("id", id).param("priority", priority).param("available", availableAt).param("created", createdAt)
                 .query(Integer.class).single();
+    }
+
+    /** Where a new job of this priority would join the GPU queue (1 is next). US-016 routing. */
+    int positionForNew(int priority) {
+        return 1 + jdbc.sql("""
+                SELECT count(*) FROM generation_job
+                 WHERE status IN ('queued', 'failed') AND kind IN ('song', 'beat') AND provider = 'self'
+                   AND priority >= :priority
+                """).param("priority", priority).query(Integer.class).single();
     }
 
     /**

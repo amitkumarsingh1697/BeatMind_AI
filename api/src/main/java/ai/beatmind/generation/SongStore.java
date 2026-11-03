@@ -21,7 +21,7 @@ class SongStore {
     /** A new song as the creator asked for it. Text is already NFC. */
     record NewSong(UUID id, UUID ownerId, UUID jobId, String mode, String title, String languageTag, String prompt,
                    String lyrics, String vocalType, boolean instrumental, int durationSeconds, String plan,
-                   String clientIpHash, String beatJson) {}
+                   String clientIpHash, String beatJson, String rights, UUID billingPeriodId, UUID subscriptionId) {}
 
     record Song(UUID id, UUID ownerId, UUID jobId, String mode, String title, String titleLatin, String languageTag,
                 String prompt, String lyrics, String vocalType, boolean instrumental, int durationSeconds,
@@ -42,7 +42,8 @@ class SongStore {
     }
 
     /** {@code tempoBpm} is the tempo the worker measured on a beat-mode take (US-015), else null. */
-    record Take(UUID id, int index, String status, Long watermarkId, Map<String, Asset> assets, Double tempoBpm) {}
+    record Take(UUID id, int index, String status, Long watermarkId, Map<String, Asset> assets, Double tempoBpm,
+                int version) {}
 
     record Asset(String key, String contentType, String sha256, long bytes) {}
 
@@ -61,14 +62,16 @@ class SongStore {
     }
 
     void create(NewSong s) {
-        String rights = Entitlements.paid(s.plan()) ? "user_owned" : "bm_owned";
+        String rights = s.rights() != null ? s.rights() : Entitlements.paid(s.plan()) ? "user_owned" : "bm_owned";
         jdbc.sql("""
                 INSERT INTO song (id, owner_id, job_id, mode, title, title_latin, language_tag, prompt, lyrics,
                                   vocal_type, instrumental, duration_seconds, plan_at_creation, rights_status,
-                                  search_text, search_key, client_ip_hash, beat)
+                                  search_text, search_key, client_ip_hash, beat, billing_period_id, subscription_id)
                 VALUES (:id, :owner, :job, :mode, :title, :latin, :tag, :prompt, :lyrics, :vocal, :instrumental,
-                        :duration, :plan, :rights, :text, :key, :ip, CAST(:beat AS jsonb))
+                        :duration, :plan, :rights, :text, :key, :ip, CAST(:beat AS jsonb), :period, :subscription)
                 """)
+                .param("period", s.billingPeriodId())
+                .param("subscription", s.subscriptionId())
                 .param("id", s.id())
                 .param("owner", s.ownerId())
                 .param("job", s.jobId())
@@ -176,7 +179,7 @@ class SongStore {
     }
 
     List<Take> takes(UUID songId) {
-        return jdbc.sql("SELECT id, idx, status, watermark_id, assets::text AS assets, analysis::text AS analysis FROM take WHERE song_id = :song ORDER BY idx")
+        return jdbc.sql("SELECT id, idx, status, watermark_id, assets::text AS assets, analysis::text AS analysis, current_version FROM take WHERE song_id = :song ORDER BY idx")
                 .param("song", songId)
                 .query(this::mapTake)
                 .list();
@@ -187,7 +190,7 @@ class SongStore {
         if (songIds.isEmpty()) {
             return out;
         }
-        jdbc.sql("SELECT song_id, id, idx, status, watermark_id, assets::text AS assets, analysis::text AS analysis FROM take WHERE song_id IN (:songs) ORDER BY idx")
+        jdbc.sql("SELECT song_id, id, idx, status, watermark_id, assets::text AS assets, analysis::text AS analysis, current_version FROM take WHERE song_id IN (:songs) ORDER BY idx")
                 .param("songs", songIds)
                 .query((rs, n) -> {
                     out.computeIfAbsent(rs.getObject("song_id", UUID.class), k -> new ArrayList<>()).add(mapTake(rs, n));
@@ -280,6 +283,7 @@ class SongStore {
             JsonNode measured = json.readTree(analysis).path("tempo").path("measuredBpm");
             tempo = measured.isNumber() ? measured.asDouble() : null;
         }
-        return new Take(rs.getObject("id", UUID.class), rs.getInt("idx"), rs.getString("status"), watermark, assets, tempo);
+        return new Take(rs.getObject("id", UUID.class), rs.getInt("idx"), rs.getString("status"), watermark, assets, tempo,
+                rs.getInt("current_version"));
     }
 }

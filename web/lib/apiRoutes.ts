@@ -72,6 +72,19 @@ const ROUTES: [string, RegExp][] = [
   ["DELETE", new RegExp(`^songs/${UUID}/shares/${UUID}$`)],
   ["GET", /^shared\/[A-Za-z0-9_-]{20,64}$/],
   ["GET", /^shared\/[A-Za-z0-9_-]{20,64}\/audio$/],
+  // Sprint 5: plans and payments (US-033, US-034, US-037), the editor (US-038), the verify page
+  // (US-021) and the fallback spend view (US-016). The webhook is checked by its signature.
+  ["GET", /^billing$/],
+  ["POST", /^checkout$/],
+  ["POST", /^billing\/(cancel|simulate)$/],
+  ["POST", /^webhooks\/razorpay$/],
+  ["POST", new RegExp(`^songs/${UUID}/edits$`)],
+  ["GET", new RegExp(`^songs/${UUID}/takes/[1-9][0-9]?/versions$`)],
+  ["GET", new RegExp(`^songs/${UUID}/takes/[1-9][0-9]?/versions/[1-9][0-9]{0,2}/audio$`)],
+  ["POST", new RegExp(`^songs/${UUID}/takes/[1-9][0-9]?/versions/[1-9][0-9]{0,2}/restore$`)],
+  ["POST", /^verify$/],
+  ["GET", new RegExp(`^verify/${UUID}$`)],
+  ["GET", /^admin\/fallback$/],
 ];
 
 export function isAllowed(method: string, path: string): boolean {

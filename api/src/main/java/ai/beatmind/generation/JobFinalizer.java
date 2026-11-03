@@ -3,6 +3,7 @@ package ai.beatmind.generation;
 import ai.beatmind.moderation.ModerationCases;
 import ai.beatmind.provenance.ProvenanceLedger;
 import ai.beatmind.provenance.ProvenanceLedger.Actor;
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,9 +35,13 @@ class JobFinalizer {
     private final TransactionTemplate tx;
     private final LyricDrafts drafts;
     private final ModerationCases cases;
+    private final Edits edits;
+    private final Verifier verifier;
 
     JobFinalizer(JdbcClient jdbc, JsonMapper json, SongStore songs, Credits credits, ProvenanceLedger ledger,
-                 TransactionTemplate tx, LyricDrafts drafts, ModerationCases cases) {
+                 TransactionTemplate tx, LyricDrafts drafts, ModerationCases cases, Edits edits, Verifier verifier) {
+        this.edits = edits;
+        this.verifier = verifier;
         this.drafts = drafts;
         this.cases = cases;
         this.jdbc = jdbc;
@@ -69,21 +74,36 @@ class JobFinalizer {
     }
 
     private int finalizeNext() {
-        record Job(UUID id, UUID userId, String status, String result) {}
+        record Job(UUID id, UUID userId, String status, String result, String kind, String provider) {}
         List<Job> jobs = jdbc.sql("""
-                SELECT id, user_id, status, result::text AS result FROM generation_job
+                SELECT id, user_id, status, result::text AS result, kind, provider FROM generation_job
                  WHERE finalized_at IS NULL AND status IN ('succeeded', 'dead')
                  ORDER BY finished_at NULLS FIRST LIMIT 1 FOR UPDATE SKIP LOCKED
                 """)
                 .query((rs, n) -> new Job(rs.getObject("id", UUID.class), rs.getObject("user_id", UUID.class),
-                        rs.getString("status"), rs.getString("result")))
+                        rs.getString("status"), rs.getString("result"), rs.getString("kind"), rs.getString("provider")))
                 .list();
         if (jobs.isEmpty()) {
             return 0;
         }
         Job job = jobs.getFirst();
-        var song = songs.byJob(job.id());
-        if (song.isPresent()) {
+        if (!"self".equals(job.provider())) {
+            // US-016: the fallback API's actual cost replaces the estimate in the daily spend.
+            BigDecimal cost = BigDecimal.ZERO;
+            if ("succeeded".equals(job.status()) && job.result() != null) {
+                JsonNode c = json.readTree(job.result()).path("costUsd");
+                cost = c.isNumber() ? c.decimalValue() : null;
+            }
+            jdbc.sql("UPDATE generation_job SET cost_actual_usd = coalesce(:cost, cost_estimate_usd) WHERE id = :id")
+                    .param("cost", cost).param("id", job.id()).update();
+        }
+        var song = "edit".equals(job.kind()) || "verify".equals(job.kind()) ? java.util.Optional.<SongStore.Song>empty()
+                : songs.byJob(job.id());
+        if ("edit".equals(job.kind())) {
+            edits.finish(job.id(), job.userId(), job.status(), job.result());
+        } else if ("verify".equals(job.kind())) {
+            verifier.finish(job.id(), job.status(), job.result());
+        } else if (song.isPresent()) {
             record(job.id(), job.userId(), job.status(), job.result(), song.get());
         } else {
             drafts.finish(job.id(), job.userId(), job.status(), job.result());

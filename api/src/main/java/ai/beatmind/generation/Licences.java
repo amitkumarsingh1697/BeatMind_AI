@@ -75,6 +75,8 @@ class Licences {
         String scope = switch (song.rightsStatus()) {
             case "user_owned" -> "ownership_paid";
             case "bm_owned", "free_licensed" -> "commercial_free";
+            case "vesting" -> throw new SongRequests.Refusal(HttpStatus.CONFLICT, "ownership_pending",
+                    "You will own this song once this month's payment goes through. The certificate is ready then.");
             default -> throw new SongRequests.Refusal(HttpStatus.FORBIDDEN, "disabled", "This song is unavailable.");
         };
         Optional<Certificate> existing = forSong(songId, scope);

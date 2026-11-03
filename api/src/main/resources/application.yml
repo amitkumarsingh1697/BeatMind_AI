@@ -10,6 +10,11 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  servlet:
+    multipart:
+      # US-021: the verify page takes one audio file.
+      max-file-size: 30MB
+      max-request-size: 31MB
   threads:
     virtual:
       enabled: true
@@ -93,6 +98,29 @@ beatmind:
     # US-018: lyric drafts per account per day. US-025: free commercial licences per month (A-005).
     lyrics-per-day: ${BEATMIND_LYRICS_PER_DAY:30}
     free-commercial-licences-per-month: 5
+  billing:
+    # US-034. mode: stub (local; checkout is simulated through the real webhook handler), test or
+    # live (Razorpay). Keys and plan ids come from the Razorpay dashboard (TODO.md).
+    mode: ${BEATMIND_BILLING_MODE:stub}
+    razorpay:
+      api-url: ${RAZORPAY_API_URL:https://api.razorpay.com}
+      key-id: ${RAZORPAY_KEY_ID:}
+      key-secret: ${RAZORPAY_KEY_SECRET:}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+      # Razorpay plan ids per plan and price variant, for example "creator-A=plan_Nx..,pro-A=plan_Ny..".
+      plans: ${RAZORPAY_PLANS:}
+  fallback:
+    # US-016, ADR-007: paid songs go to the Lyria API when the GPU queue is too long, or always for
+    # the languages listed, until the daily spend cap is reached. Off until the API is set up.
+    enabled: ${BEATMIND_FALLBACK_ENABLED:false}
+    after-wait-seconds: ${BEATMIND_FALLBACK_AFTER_SECONDS:120}
+    languages: ${BEATMIND_FALLBACK_LANGUAGES:}
+    usd-per-take: ${BEATMIND_FALLBACK_USD_PER_TAKE:0.04}
+    daily-cap-usd: ${BEATMIND_FALLBACK_DAILY_CAP_USD:10}
+  verify:
+    # US-021, REQ-SEC-10: checks per network per hour, and the largest file accepted.
+    per-ip-per-hour: ${BEATMIND_VERIFY_PER_IP_PER_HOUR:20}
+    max-file-mb: 30
   turnstile:
     # Cloudflare Turnstile secret. Blank disables the bot check (local development only).
     secret: ${TURNSTILE_SECRET:}
