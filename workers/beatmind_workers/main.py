@@ -221,7 +221,12 @@ def main() -> None:
     worker_id = f"{socket.gethostname()}:{os.getpid()}"
     acestep = None
     if runner == "acestep":
-        acestep = AceStepRunner(os.environ["ACESTEP_URL"], os.environ.get("ACESTEP_API_KEY", ""))
+        # A take on a laptop or CPU can take several minutes; raise ACESTEP_TIMEOUT_SECONDS there.
+        acestep = AceStepRunner(
+            os.environ["ACESTEP_URL"],
+            os.environ.get("ACESTEP_API_KEY", ""),
+            timeout=float(os.environ.get("ACESTEP_TIMEOUT_SECONDS", "600")),
+        )
     lyria = LyriaRunner.from_env() if "lyria" in providers else None
     # US-039: Demucs on the GPU worker; band-split stub locally.
     separator = stems.separator_from_env(os.environ.get("BEATMIND_STEMS", "stub"))

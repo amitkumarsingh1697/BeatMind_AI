@@ -2,7 +2,7 @@
 
 Your personal music generator and DJ mixer: original songs and beats from a vibe or your own lyrics, in your language, at a price that fits where you live.
 
-> **Status:** Sprint 1 (first song end to end). Sign in, describe a song and play two takes, all on your machine. Songs are short test tones from a CPU stub until a GPU runs ACE-Step ([TODO.md](TODO.md)). Sprint reports: [0](docs/09-delivery/sprint-00-report.md), [1](docs/09-delivery/sprint-01-report.md).
+> **Status:** Sprint 6 (international payments and stems). Songs are short test tones from a stub until the worker is pointed at ACE-Step; see [Real songs](#real-songs). Sprint reports are in [docs/09-delivery](docs/09-delivery/).
 
 ## Documentation
 
@@ -45,7 +45,50 @@ Then open:
 
 Monitoring (US-004): `TRACING_EXPORT_ENABLED=true docker compose --profile observability up --build` adds Grafana at http://localhost:3001 (dashboard "BeatMind pipeline"), Prometheus at http://localhost:9090 and Jaeger traces at http://localhost:16686.
 
-Real songs: run the ACE-Step 1.5 server on a GPU box, then `BEATMIND_RUNNER=acestep ACESTEP_URL=http://<gpu-box>:8001 docker compose up`.
+### Real songs
+
+By default the worker makes short test tones, so the whole app runs in seconds without a music
+model. For real songs, point it at an ACE-Step 1.5 server.
+
+**On a Mac with Apple Silicon (M1 or later, 16 GB or more).** ACE-Step runs on the Mac's GPU
+through Apple's MLX. It has to run natively, outside Docker, because Docker on a Mac cannot use
+the GPU.
+
+1. Install ACE-Step once (about 10 GB of models download on the first start):
+
+   ```sh
+   xcode-select --install    # git, if you don't have it
+   git clone https://github.com/ace-step/ACE-Step-1.5.git && cd ACE-Step-1.5
+   chmod +x start_api_server_macos.sh
+   ./start_api_server_macos.sh    # serves on http://127.0.0.1:8001; leave it running
+   ```
+
+   Open http://127.0.0.1:8001/docs to check it is up.
+2. In a second terminal, in this repository:
+
+   ```sh
+   BEATMIND_RUNNER=acestep ACESTEP_URL=http://host.docker.internal:8001 \
+   ACESTEP_TIMEOUT_SECONDS=1800 BEATMIND_LEASE_SECONDS=2400 \
+   docker compose up --build
+   ```
+
+3. Open http://localhost:3000/en/create and make a song. Each request renders two takes; the
+   first one is slow while the models load.
+
+If the worker log says the connection was refused, edit `start_api_server_macos.sh`, set
+`HOST="0.0.0.0"` and an `API_KEY`, restart it, and add `ACESTEP_API_KEY=<that key>` to the command
+in step 2.
+
+**On a rented NVIDIA GPU**, start the server as in [workers/bench/README.md](workers/bench/README.md),
+then `BEATMIND_RUNNER=acestep ACESTEP_URL=http://<gpu-box>:8001 ACESTEP_API_KEY=<key> docker compose up`.
+
+**On a CPU only** it works but is slow (about 5 minutes per take on 4 cores); use the settings in
+[workers/spikes/hindi/README.md](workers/spikes/hindi/README.md) and raise both timeouts as above.
+
+`ACESTEP_TIMEOUT_SECONDS` is how long the worker waits for one request's takes, and
+`BEATMIND_LEASE_SECONDS` is how long a running job may take before it counts as stuck and is
+started again; keep the lease above the timeout. Stems still use the band-split stub unless the
+worker runs with `BEATMIND_STEMS=demucs` and the `demucs` package.
 
 To work on one part:
 
