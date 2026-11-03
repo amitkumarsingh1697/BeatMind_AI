@@ -29,9 +29,9 @@ class SessionCookieFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         SessionService.tokenFrom(request)
                 .flatMap(sessions::resolve)
-                .flatMap(users::find)
-                .ifPresent(user -> {
-                    boolean admin = props.isAdmin(user.email());
+                .ifPresent(session -> users.find(session.userId()).ifPresent(user -> {
+                    // US-031, REQ-SEC-06, TM-10: the admin role needs a session that passed the second factor.
+                    boolean admin = props.isAdmin(user.email()) && session.mfaAt() != null;
                     var principal = new CurrentUser(user.id(), user.email(), user.profileComplete(), admin, user.plan());
                     var authorities = admin
                             ? List.of(new SimpleGrantedAuthority("ROLE_USER"), new SimpleGrantedAuthority("ROLE_ADMIN"))
@@ -40,7 +40,7 @@ class SessionCookieFilter extends OncePerRequestFilter {
                     var context = SecurityContextHolder.createEmptyContext();
                     context.setAuthentication(auth);
                     SecurityContextHolder.setContext(context);
-                });
+                }));
         chain.doFilter(request, response);
     }
 }

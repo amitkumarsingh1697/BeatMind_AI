@@ -131,7 +131,7 @@ class ProvenanceLedgerTest {
 
     @Test
     void adminCanVerifyEveryChain() throws Exception {
-        Cookie admin = SignInHelper.signIn(mvc, "admin@example.com");
+        Cookie admin = SignInHelper.signInAdmin(mvc, "admin@example.com");
         mvc.perform(get("/v1/admin/ledger/verify").cookie(admin))
                 .andExpect(jsonPath("$.valid").value(true))
                 .andExpect(jsonPath("$.songs").value(1))

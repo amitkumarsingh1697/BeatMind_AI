@@ -12,11 +12,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 class UserStore {
 
-    record User(UUID id, String email, String googleSub, LocalDate birthMonth, String termsVersion, String plan) {
+    record User(UUID id, String email, String googleSub, LocalDate birthMonth, String termsVersion, String plan,
+                String locale, boolean suspended) {
         boolean profileComplete() {
             return birthMonth != null && termsVersion != null;
         }
     }
+
+    private static final String COLUMNS =
+            "id, email, google_sub, birth_month, terms_version, plan, locale, suspended_at IS NOT NULL AS suspended";
 
     private final JdbcClient jdbc;
 
@@ -25,7 +29,7 @@ class UserStore {
     }
 
     Optional<User> find(UUID id) {
-        return jdbc.sql("SELECT id, email, google_sub, birth_month, terms_version, plan FROM app_user WHERE id = :id")
+        return jdbc.sql("SELECT " + COLUMNS + " FROM app_user WHERE id = :id")
                 .param("id", id)
                 .query(UserStore::map)
                 .optional();
@@ -43,7 +47,7 @@ class UserStore {
                 .param("email", normalized)
                 .param("locale", locale)
                 .update();
-        return jdbc.sql("SELECT id, email, google_sub, birth_month, terms_version, plan FROM app_user WHERE lower(email) = :email")
+        return jdbc.sql("SELECT " + COLUMNS + " FROM app_user WHERE lower(email) = :email")
                 .param("email", normalized)
                 .query(UserStore::map)
                 .single();
@@ -55,7 +59,7 @@ class UserStore {
      */
     @Transactional
     User upsertByGoogle(String sub, String email, String locale) {
-        Optional<User> bySub = jdbc.sql("SELECT id, email, google_sub, birth_month, terms_version, plan FROM app_user WHERE google_sub = :sub")
+        Optional<User> bySub = jdbc.sql("SELECT " + COLUMNS + " FROM app_user WHERE google_sub = :sub")
                 .param("sub", sub)
                 .query(UserStore::map)
                 .optional();
@@ -67,7 +71,8 @@ class UserStore {
         if (user.googleSub() == null) {
             jdbc.sql("UPDATE app_user SET google_sub = :sub WHERE id = :id").param("sub", sub).param("id", user.id()).update();
         }
-        return new User(user.id(), user.email(), sub, user.birthMonth(), user.termsVersion(), user.plan());
+        return new User(user.id(), user.email(), sub, user.birthMonth(), user.termsVersion(), user.plan(),
+                user.locale(), user.suspended());
     }
 
     /** Stores the birth month only; the day was needed just for the 18+ check. */
@@ -77,6 +82,11 @@ class UserStore {
                 .param("terms", termsVersion)
                 .param("id", id)
                 .update();
+    }
+
+    /** US-010: the interface language the account chose (en or hi). */
+    void setLocale(UUID id, String locale) {
+        jdbc.sql("UPDATE app_user SET locale = :locale WHERE id = :id").param("locale", locale).param("id", id).update();
     }
 
     /** Deletes the account and, by cascade, its sessions and jobs. */
@@ -95,6 +105,8 @@ class UserStore {
                 rs.getString("google_sub"),
                 rs.getObject("birth_month", LocalDate.class),
                 rs.getString("terms_version"),
-                rs.getString("plan"));
+                rs.getString("plan"),
+                rs.getString("locale"),
+                rs.getBoolean("suspended"));
     }
 }

@@ -19,6 +19,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param dayZone the time zone a "day" resets in
  * @param downloadLinkTtl how long a signed download link works (REQ-F-20, 15 minutes)
  * @param downloadSecret key for signing download links; blank means a random one per start
+ * @param lyricsPerDay lyric drafts the AI writes for one account per day (US-018)
+ * @param freeCommercialLicencesPerMonth free songs one account may licence commercially per
+ *     calendar month (REQ-F-21, A-005)
  */
 @ConfigurationProperties("beatmind.entitlements")
 record Entitlements(
@@ -29,7 +32,9 @@ record Entitlements(
         int ipRequestsPerHour,
         ZoneId dayZone,
         Duration downloadLinkTtl,
-        String downloadSecret) {
+        String downloadSecret,
+        int lyricsPerDay,
+        int freeCommercialLicencesPerMonth) {
 
     /** One credit is one take; every request makes two takes (REQ-F-05). */
     static final int TAKES_PER_REQUEST = 2;
@@ -44,6 +49,8 @@ record Entitlements(
         dayZone = dayZone == null ? ZoneId.of("Asia/Kolkata") : dayZone;
         downloadLinkTtl = downloadLinkTtl == null ? Duration.ofMinutes(15) : downloadLinkTtl;
         downloadSecret = downloadSecret == null ? "" : downloadSecret;
+        lyricsPerDay = lyricsPerDay <= 0 ? 30 : lyricsPerDay;
+        freeCommercialLicencesPerMonth = freeCommercialLicencesPerMonth <= 0 ? 5 : freeCommercialLicencesPerMonth;
     }
 
     static boolean paid(String plan) {

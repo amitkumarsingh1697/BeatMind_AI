@@ -1,4 +1,4 @@
-// Walks the Sprint 2 screens in a real browser against a running local stack, runs axe-core on
+// Walks the app screens (Sprints 2 and 3, English and Hindi) in a real browser against a running local stack, runs axe-core on
 // each (TC-REQ-NFR-08-01: no serious or critical violations) and saves screenshots.
 //
 //   node e2e/ui-check.mjs [base-url] [screenshot-dir]
@@ -6,6 +6,7 @@
 // Needs Playwright with Chromium installed (npx playwright install chromium). Not part of CI yet;
 // see docs/09-delivery/sprint-02-report.md.
 import { createRequire } from "node:module";
+import { createHmac } from "node:crypto";
 import { mkdirSync, readFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
@@ -16,6 +17,19 @@ const BASE = process.argv[2] ?? "http://localhost:3000";
 const OUT = process.argv[3] ?? "e2e/screenshots";
 mkdirSync(OUT, { recursive: true });
 const failures = [];
+
+/** RFC 6238 code for the admin second factor (SHA-1, 6 digits, 30 s). */
+function totp(base32) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for (const c of base32.replace(/[\s=]/g, "").toUpperCase()) bits += alphabet.indexOf(c).toString(2).padStart(5, "0");
+  const key = Buffer.from(bits.match(/.{8}/g).map((b) => parseInt(b, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
+  const h = createHmac("sha1", key).update(counter).digest();
+  const o = h[h.length - 1] & 15;
+  return String((h.readUInt32BE(o) & 0x7fffffff) % 1000000).padStart(6, "0");
+}
 
 async function audit(page, name) {
   await page.addScriptTag({ content: axeSource });
@@ -57,8 +71,20 @@ for (const scheme of ["dark", "light"]) {
   await page.getByRole("button", { name: "Email me a sign-in code" }).click();
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByLabel("Date of birth").fill("1995-04-12");
-  await page.getByLabel("I accept the beta terms and privacy policy.").check();
+  await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Continue" }).click();
+
+  // A blocked request says why and offers a review (US-028).
+  await page.getByRole("heading", { name: "Make a song" }).waitFor();
+  await page.getByLabel("Vibe, genre, mood and instruments").fill("A sad song in the voice of Arijit Singh");
+  await page.getByRole("button", { name: /Make two takes/ }).click();
+  await page.getByText("We can't make this").waitFor();
+  await page.getByRole("button", { name: "Ask a person to review" }).click();
+  await page.getByLabel("Anything we should know? (optional)").fill("It is my own tribute song, no imitation.");
+  await page.getByRole("button", { name: "Send for review" }).click();
+  await page.getByText(/A person will look at it/).waitFor();
+  await shot(page, `03a-blocked${suffix}`);
+  await audit(page, `blocked request (${scheme})`);
 
   // Vibe mode first, wait for the takes.
   await page.getByRole("heading", { name: "Make a song" }).waitFor();
@@ -68,9 +94,17 @@ for (const scheme of ["dark", "light"]) {
   await page.getByRole("button", { name: /Make two takes/ }).click();
   await page.getByText("Your takes are ready.").first().waitFor({ timeout: 30000 });
 
-  // Then a Hindi lyrics song.
+  // Then a Hindi song with lyrics from the AI lyric writer, edited (US-018).
   await page.getByRole("radio", { name: "Use my lyrics" }).check();
   await page.getByLabel("Vocal language").selectOption("hi");
+  await page.getByRole("button", { name: "Help me write lyrics" }).click();
+  await page.getByLabel("What is the song about?").fill("मुंबई की बारिश");
+  await page.getByLabel("Mood (optional)").fill("सुकून भरा");
+  await page.getByRole("button", { name: "Write lyrics", exact: true }).click();
+  await page.getByRole("button", { name: "Use these lyrics" }).waitFor({ timeout: 30000 });
+  await shot(page, `03b-lyric-writer${suffix}`);
+  await audit(page, `lyric writer (${scheme})`);
+  await page.getByRole("button", { name: "Use these lyrics" }).click();
   await page.getByLabel("Your lyrics").fill("[Verse]\nरात का सफ़र, तेरे बिना\nचलते रहे हम, चाँद के संग\n\n[Chorus]\nये रात का सफ़र");
   await page.getByLabel("Style").fill("Slow acoustic ballad, guitar and strings");
   await page.getByLabel("Title (optional)").fill("रात का सफ़र");
@@ -100,6 +134,21 @@ for (const scheme of ["dark", "light"]) {
   await audit(page, `download dialog (${scheme})`);
   await page.keyboard.press("Escape");
 
+  // Free commercial licence and its public certificate (US-025).
+  await page.getByRole("button", { name: "Licence for commercial use" }).click();
+  await page.getByRole("heading", { name: "Licence this song for commercial use?" }).waitFor();
+  await shot(page, `08a-licence-confirm${suffix}`, { fullPage: false });
+  await audit(page, `licence dialog (${scheme})`);
+  await page.getByRole("button", { name: "Licence it" }).click();
+  await page.getByRole("link", { name: "View certificate" }).waitFor();
+  await shot(page, `08b-licensed${suffix}`);
+  await page.getByRole("link", { name: "View certificate" }).click();
+  await page.getByRole("heading", { name: "Song licence and rights certificate" }).waitFor();
+  await shot(page, `08c-certificate${suffix}`);
+  await audit(page, `certificate (${scheme})`);
+
+  await page.goto(`${BASE}/en/terms`);
+  await audit(page, `terms (${scheme})`);
   await page.goto(`${BASE}/en/help`);
   await audit(page, `help (${scheme})`);
   await page.goto(`${BASE}/en/design`);
@@ -125,6 +174,28 @@ for (const scheme of ["dark", "light"]) {
     await audit(p, "song page (phone)");
     const overflow = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     if (overflow) failures.push("song page (phone): horizontal scroll at 390 px");
+
+    // The same screens in Hindi (US-010): switch language from the header and stay on the page.
+    const songUrl = p.url();
+    await p.getByRole("link", { name: "हिन्दी" }).click();
+    await p.waitForURL(/\/hi\/songs\//);
+    await p.getByRole("heading", { name: "सुनें" }).waitFor();
+    await shot(p, "13-phone-song-hi");
+    await audit(p, "song page (Hindi, phone)");
+    await p.goto(`${BASE}/hi/create`);
+    await p.getByRole("heading", { name: "गाना बनाएँ" }).waitFor();
+    await shot(p, "14-phone-create-hi");
+    await audit(p, "create (Hindi, phone)");
+    await p.goto(`${BASE}/hi/library`);
+    await p.getByRole("link", { name: "रात का सफ़र" }).waitFor();
+    await shot(p, "15-phone-library-hi");
+    await audit(p, "library (Hindi, phone)");
+    await p.goto(`${BASE}/hi/terms`);
+    await shot(p, "16-phone-terms-hi");
+    await audit(p, "terms (Hindi, phone)");
+    const hiOverflow = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+    if (hiOverflow) failures.push("terms (Hindi, phone): horizontal scroll at 390 px");
+    if (!songUrl.includes("/en/")) failures.push("language switch did not start from an English page");
     await phone.close();
   }
 }
@@ -132,21 +203,42 @@ for (const scheme of ["dark", "light"]) {
 // Admin, signed in as the local admin account.
 const admin = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: "dark" });
 const a = await admin.newPage();
-await a.goto(`${BASE}/en/admin/jobs`);
+await a.goto(`${BASE}/en/admin`);
 await a.getByLabel("Email").fill("admin@example.com");
 await a.getByRole("button", { name: "Email me a sign-in code" }).click();
 await a.getByRole("button", { name: "Sign in", exact: true }).click();
-await a.getByRole("heading", { name: /Operations|One more step/ }).waitFor();
+const second = /Set up a second factor|Enter your second-factor code|One more step/;
+await a.getByRole("heading", { name: second }).waitFor();
 if (await a.getByLabel("Date of birth").isVisible().catch(() => false)) {
   await a.getByLabel("Date of birth").fill("1990-01-01");
-  await a.getByLabel("I accept the beta terms and privacy policy.").check();
+  await a.getByRole("checkbox").check();
   await a.getByRole("button", { name: "Continue" }).click();
 }
-await a.getByRole("heading", { name: "Operations" }).waitFor();
-await a.getByRole("button", { name: "Verify every chain" }).click();
-await a.getByText(/song chains verify/).waitFor();
+// Second factor (US-031): enrol on first visit; later runs need ADMIN_TOTP_SECRET.
+await a.getByRole("heading", { name: /Set up a second factor|Enter your second-factor code/ }).waitFor();
+let secret = process.env.ADMIN_TOTP_SECRET ?? "";
+if (await a.getByRole("button", { name: "Start setup" }).isVisible().catch(() => false)) {
+  await a.getByRole("button", { name: "Start setup" }).click();
+  secret = (await a.getByLabel("Setup key").innerText()).replace(/\s/g, "");
+  console.log(`admin second factor enrolled; rerun with ADMIN_TOTP_SECRET=${secret}`);
+  await shot(a, "12a-admin-mfa-setup");
+  await audit(a, "admin second factor");
+  await a.getByLabel("6-digit code").fill(totp(secret));
+  await a.getByRole("button", { name: "Confirm and get recovery codes" }).click();
+  await a.getByRole("heading", { name: "Save your recovery codes" }).waitFor();
+  await a.getByRole("button", { name: /open the console/ }).click();
+} else {
+  if (!secret) throw new Error("the admin already has a second factor: set ADMIN_TOTP_SECRET");
+  await a.getByLabel(/Code from your app/).fill(totp(secret));
+  await a.getByRole("button", { name: "Verify" }).click();
+}
+await a.getByRole("heading", { name: "Console" }).waitFor();
+await a.getByRole("heading", { name: "Moderation queue" }).waitFor();
+await a.getByText(/Blocked request/).first().waitFor();
 await shot(a, "12-admin");
 await audit(a, "admin");
+await a.getByRole("button", { name: "Verify every chain" }).click();
+await a.getByText(/song chains verify/).waitFor();
 await browser.close();
 
 if (failures.length) {

@@ -171,7 +171,7 @@ class GenerationApiTest {
                 .andExpect(jsonPath("$.status").value("failed"))
                 .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("CUDA"))));
 
-        Cookie admin = SignInHelper.signIn(mvc, "admin@example.com");
+        Cookie admin = SignInHelper.signInAdmin(mvc, "admin@example.com");
         mvc.perform(get("/v1/admin/jobs").cookie(admin))
                 .andExpect(jsonPath("$[0].id").value(id))
                 .andExpect(jsonPath("$[0].error").value("RuntimeError: CUDA out of memory"));

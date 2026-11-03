@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { Locale } from "@/lib/messages";
 import { Logo } from "./Icons";
 import NavLinks from "./NavLinks";
+import LanguageSwitch from "./LanguageSwitch";
+import { appText } from "@/lib/i18n";
 
 /**
  * Page frame for every screen: skip link, header with the brand and navigation, and a footer with
@@ -18,11 +20,11 @@ export default function AppShell({
   variant?: "app" | "marketing";
   wide?: boolean;
 }) {
-  const other = locale === "hi" ? { code: "en", label: "English" } : { code: "hi", label: "हिन्दी" };
+  const t = appText(locale).shell;
   return (
     <>
       <a className="skip-link" href="#main">
-        Skip to content
+        {t.skip}
       </a>
       <header className="shell-header">
         <div className="shell-bar">
@@ -35,10 +37,8 @@ export default function AppShell({
           {variant === "app" ? (
             <NavLinks locale={locale} />
           ) : (
-            <nav className="nav" aria-label="Language">
-              <a href={`/${other.code}`} hrefLang={other.code} lang={other.code}>
-                {other.label}
-              </a>
+            <nav className="nav" aria-label={t.languageNav}>
+              <LanguageSwitch locale={locale} />
             </nav>
           )}
         </div>
@@ -48,10 +48,11 @@ export default function AppShell({
       </main>
       <footer className="shell-footer">
         <div className="shell-bar">
-          <span>BeatMind AI · every song is labelled as AI-generated</span>
-          <a href={`/${locale}/help`} style={{ marginInlineStart: "auto" }}>
-            Help
+          <span>{t.footer}</span>
+          <a href={`/${locale}/terms`} style={{ marginInlineStart: "auto" }}>
+            {t.terms}
           </a>
+          <a href={`/${locale}/help`}>{t.help}</a>
         </div>
       </footer>
     </>

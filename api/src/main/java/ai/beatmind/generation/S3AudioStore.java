@@ -51,6 +51,11 @@ class S3AudioStore implements AudioStore {
         }
     }
 
+    @Override
+    public void delete(String key) {
+        client().deleteObject(b -> b.bucket(bucket).key(key));
+    }
+
     private S3Client client() {
         S3Client c = client;
         if (c == null) {

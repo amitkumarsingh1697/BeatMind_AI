@@ -42,3 +42,24 @@ test("refuses Sprint 2 lookalikes", () => {
   assert.ok(!isAllowed("GET", "downloads/a.b/../../admin"));
   assert.ok(!isAllowed("GET", `songs/${ID}/takes/1/downloads`));
 });
+
+test("forwards the Sprint 3 calls", () => {
+  assert.ok(isAllowed("PATCH", "me"));
+  assert.ok(isAllowed("POST", "me/mfa/verify"));
+  assert.ok(isAllowed("POST", "lyrics"));
+  assert.ok(isAllowed("GET", `lyrics/${ID}`));
+  assert.ok(isAllowed("POST", `moderation/cases/${ID}/appeal`));
+  assert.ok(isAllowed("POST", `songs/${ID}/takes/1/appeal`));
+  assert.ok(isAllowed("POST", `songs/${ID}/commercial-licence`));
+  assert.ok(isAllowed("GET", "certificates/BM-7K2Q-9XWM-4D1R"));
+  assert.ok(isAllowed("POST", `admin/moderation/${ID}/decision`));
+  assert.ok(isAllowed("GET", `admin/songs/${ID}/takes/2/audio`));
+});
+
+test("refuses Sprint 3 lookalikes", () => {
+  assert.ok(!isAllowed("DELETE", "me"));
+  assert.ok(!isAllowed("POST", "me/mfa/disable"));
+  assert.ok(!isAllowed("GET", "certificates/bm-7k2q-9xwm-4d1r"));
+  assert.ok(!isAllowed("GET", "certificates/BM-7K2Q-9XWM-4D1R/../x"));
+  assert.ok(!isAllowed("PATCH", "lyrics"));
+});

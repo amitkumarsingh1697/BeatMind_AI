@@ -3,6 +3,8 @@ package ai.beatmind.generation;
 import ai.beatmind.botcheck.TurnstileVerifier;
 import ai.beatmind.identity.ClientFingerprint;
 import ai.beatmind.identity.CurrentUser;
+import ai.beatmind.moderation.ModerationCases;
+import ai.beatmind.moderation.TextModeration;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,7 +13,9 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -41,9 +45,11 @@ class GenerationController {
      * @param vocalType female, male, duet or any
      * @param durationSeconds song length, 30 to 240 seconds
      * @param turnstileToken Cloudflare Turnstile token when the bot check is on (REQ-SEC-09)
+     * @param lyricsDraftId the AI draft the lyrics came from, if any (US-018), so the ledger can say
+     *     which lines the AI wrote and whether the creator changed them
      */
     record CreateRequest(
-            @Pattern(regexp = "song", message = "only song is available for now") String kind,
+            @Pattern(regexp = "song", message = "use /v1/lyrics for lyrics; beat mode comes later") String kind,
             @Pattern(regexp = "vibe|lyrics") String mode,
             @Size(max = 4000) String prompt,
             @Size(max = 30000) String lyrics,
@@ -52,9 +58,14 @@ class GenerationController {
             @Pattern(regexp = "female|male|duet|any") String vocalType,
             Boolean instrumental,
             @Min(30) @Max(240) Integer durationSeconds,
-            @Size(max = 4096) String turnstileToken) {}
+            @Size(max = 4096) String turnstileToken,
+            UUID lyricsDraftId) {}
+
+    static final String SUSPENDED = "Your account is paused while we look into a report. Contact support if you think this is a mistake.";
 
     private final SongRequests requests;
+    private final TextModeration moderation;
+    private final ModerationCases cases;
     private final GenerationStore store;
     private final GenerationEvents events;
     private final TurnstileVerifier turnstile;
@@ -62,8 +73,11 @@ class GenerationController {
     private final Counter requested;
 
     GenerationController(SongRequests requests, GenerationStore store, GenerationEvents events,
-                         TurnstileVerifier turnstile, ClientFingerprint fingerprint, MeterRegistry meters) {
+                         TurnstileVerifier turnstile, ClientFingerprint fingerprint, MeterRegistry meters,
+                         TextModeration moderation, ModerationCases cases) {
         this.requests = requests;
+        this.moderation = moderation;
+        this.cases = cases;
         this.store = store;
         this.events = events;
         this.turnstile = turnstile;
@@ -84,7 +98,18 @@ class GenerationController {
         try {
             SongRequests.Request checked = SongRequests.check(req.mode(), req.prompt(), req.lyrics(), req.title(),
                     req.language(), req.vocalType(), req.instrumental(), req.durationSeconds());
-            UUID jobId = requests.create(me, checked, fingerprint.ipHash(http)).getValue();
+            // REQ-F-50, REQ-F-51: screen everything the creator typed before anything is queued.
+            Map<String, String> fields = new LinkedHashMap<>();
+            fields.put("prompt", checked.prompt());
+            fields.put("lyrics", checked.lyrics());
+            fields.put("title", checked.title());
+            TextModeration.Verdict verdict = moderation.check(fields);
+            String screened = String.join("\n", checked.prompt(), checked.title(),
+                    checked.lyrics() == null ? "" : checked.lyrics());
+            if (verdict.blocked() && !cases.cleared(me.id(), screened)) {
+                return blocked(verdict, cases.recordTextBlock(me.id(), "text_block", verdict, screened));
+            }
+            UUID jobId = requests.create(me, checked, fingerprint.ipHash(http), req.lyricsDraftId()).getValue();
             requested.increment();
             Generation created = store.find(jobId, me.id()).orElseThrow();
             return ResponseEntity.accepted()
@@ -112,6 +137,15 @@ class GenerationController {
         UUID owner = CurrentUser.get().orElseThrow().id();
         store.find(id, owner).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         return events.stream(id, owner);
+    }
+
+    /** A blocked request: says why, and gives the case id so the creator can ask for a review. */
+    static ResponseEntity<ProblemDetail> blocked(TextModeration.Verdict verdict, UUID caseId) {
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, verdict.message());
+        body.setProperty("code", verdict.code());
+        body.setProperty("field", verdict.field());
+        body.setProperty("caseId", caseId);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(body);
     }
 
     static ResponseEntity<ProblemDetail> problem(HttpStatus status, String code, String detail) {

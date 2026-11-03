@@ -251,6 +251,7 @@ img, svg { display: block; max-inline-size: 100%; }
 }
 .nav a:hover { color: var(--text); background: var(--surface-raised); }
 .nav a[aria-current="page"] { color: var(--text); background: var(--accent-soft); }
+.nav a.lang-switch { border: 1px solid var(--border); margin-inline-start: var(--space-1); }
 
 @media (max-width: 520px) {
   .shell-bar { flex-wrap: wrap; gap: var(--space-1); }
@@ -625,3 +626,34 @@ table.data { inline-size: 100%; border-collapse: collapse; font-size: var(--step
 table.data th, table.data td { text-align: start; padding: var(--space-2) var(--space-3); border-block-end: 1px solid var(--border); vertical-align: top; }
 table.data th { color: var(--text-muted); font-weight: 600; }
 .table-wrap { overflow-x: auto; }
+
+/* ---------- Sprint 3: lyric writer, rights, certificate, terms, admin ---------- */
+
+.writer { border-color: var(--ai); background: var(--ai-soft); }
+.lyrics-preview {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: var(--font-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-block-size: 22rem;
+  overflow-y: auto;
+  line-height: 1.7;
+}
+.prose ul { padding-inline-start: 1.25em; }
+.prose li { line-height: 1.6; }
+.codes { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--space-2); list-style: none; padding: 0; }
+.codes code, .secret code { font-size: var(--step-0); letter-spacing: 0.04em; }
+.secret { margin-block: var(--space-2); }
+.certificate { max-inline-size: 760px; margin-inline: auto; }
+.certificate code { overflow-wrap: anywhere; }
+
+@media print {
+  .shell-header, .shell-footer, .skip-link, .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+  .certificate { border: 1px solid #000; box-shadow: none; background: #fff; color: #000; }
+  .certificate .badge, .certificate .notice { color: #000; background: none; border-color: #000; }
+}

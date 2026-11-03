@@ -90,7 +90,7 @@ class RefundsTest extends SongApiSupport {
 
         UUID[] bad = made(neha, "fails then works");
         workerFails(bad[0]);
-        Cookie admin = SignInHelper.signIn(mvc, "admin@example.com");
+        Cookie admin = SignInHelper.signInAdmin(mvc, "admin@example.com");
         mvc.perform(post("/v1/admin/jobs/" + bad[0] + "/retry").cookie(admin)).andExpect(status().isAccepted());
         workerFails(bad[0]);
         assertThat(credits(bad[0])).isEqualTo("generation:-2,refund_failed:2");

@@ -198,6 +198,12 @@ class SongStore {
                 .optional();
     }
 
+    /** Paused by an admin (US-031): no new songs or lyrics until unpaused. */
+    boolean suspended(UUID userId) {
+        return jdbc.sql("SELECT suspended_at IS NOT NULL FROM app_user WHERE id = :id")
+                .param("id", userId).query(Boolean.class).optional().orElse(false);
+    }
+
     /** Songs this IP address asked for in the last hour, across all accounts (TM-12). */
     long recentFromIp(String ipHash) {
         return jdbc.sql("SELECT count(*) FROM song WHERE client_ip_hash = :ip AND created_at > now() - interval '1 hour'")

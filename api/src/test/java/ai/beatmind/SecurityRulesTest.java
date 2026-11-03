@@ -48,8 +48,18 @@ class SecurityRulesTest {
         mvc.perform(get("/v1/admin/jobs")).andExpect(status().isUnauthorized());
         mvc.perform(get("/v1/admin/jobs").cookie(SignInHelper.signIn(mvc, "user@example.com")))
                 .andExpect(status().isForbidden());
+        // US-031, REQ-SEC-06: an admin account without the second factor is not an admin yet.
         mvc.perform(get("/v1/admin/jobs").cookie(SignInHelper.signIn(mvc, "admin@example.com")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/v1/admin/jobs").cookie(SignInHelper.signInAdmin(mvc, "admin@example.com")))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void certificatesArePublic() throws Exception {
+        mvc.perform(get("/v1/certificates/BM-0000-0000-0000")).andExpect(status().isNotFound());
+        mvc.perform(get("/v1/moderation/cases")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/v1/lyrics/" + java.util.UUID.randomUUID())).andExpect(status().isUnauthorized());
     }
 
     @Test

@@ -1,44 +1,16 @@
 "use client";
 
+// Operations panels from Sprints 1 and 2 (US-013, US-019, US-030), shown in the admin console.
+
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import RequireAccount from "@/components/Account";
 import { ShieldIcon } from "@/components/Icons";
 import { dateTime, problem } from "@/lib/format";
-import type { Locale } from "@/lib/messages";
 
 type Job = { id: string; kind: string; attempts: number; error: string | null; createdAt: string; updatedAt: string };
 type Caps = { freeDailyCredits: number; defaultFreeDailyCredits: number; userRequestsPerTenMinutes: number; ipRequestsPerHour: number };
 type Ledger = { songs: number; events: number; valid: boolean; broken: { songId: string; brokenAtSeq: number; reason: string }[] };
 
-export default function AdminConsole({ locale }: { locale: Locale }) {
-  return (
-    <RequireAccount locale={locale}>
-      {(me) =>
-        me.admin ? (
-          <div className="stack-lg">
-            <header className="page-head">
-              <p className="eyebrow">Admin</p>
-              <h1>Operations</h1>
-              <p>Every change here is written to the admin audit log.</p>
-            </header>
-            <div className="grid-2">
-              <CapsPanel />
-              <PlanPanel />
-            </div>
-            <LedgerPanel />
-            <DeadJobs />
-          </div>
-        ) : (
-          <div className="notice" role="alert">
-            Only admins can see this page. Sign in with an admin account.
-          </div>
-        )
-      }
-    </RequireAccount>
-  );
-}
-
-function CapsPanel() {
+export function CapsPanel() {
   const [caps, setCaps] = useState<Caps | null>(null);
   const [value, setValue] = useState("");
   const [message, setMessage] = useState("");
@@ -89,7 +61,7 @@ function CapsPanel() {
   );
 }
 
-function PlanPanel() {
+export function PlanPanel() {
   const [email, setEmail] = useState("");
   const [plan, setPlan] = useState("creator");
   const [cap, setCap] = useState("");
@@ -141,7 +113,7 @@ function PlanPanel() {
   );
 }
 
-function LedgerPanel() {
+export function LedgerPanel() {
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -185,7 +157,7 @@ function LedgerPanel() {
   );
 }
 
-function DeadJobs() {
+export function DeadJobs() {
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [message, setMessage] = useState("");
 

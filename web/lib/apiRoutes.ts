@@ -39,6 +39,26 @@ const ROUTES: [string, RegExp][] = [
   ["POST", /^admin\/caps$/],
   ["POST", /^admin\/users\/plan$/],
   ["GET", /^admin\/ledger\/verify$/],
+  // Sprint 3: interface language (US-010), lyric writer (US-018), appeals (US-028, US-029),
+  // licences and certificates (US-025), second factor and admin console (US-031)
+  ["PATCH", /^me$/],
+  ["GET", /^languages$/],
+  ["GET", /^me\/mfa$/],
+  ["POST", /^me\/mfa\/(setup|confirm|verify)$/],
+  ["POST", /^lyrics$/],
+  ["GET", new RegExp(`^lyrics/${UUID}$`)],
+  ["GET", /^moderation\/cases$/],
+  ["POST", new RegExp(`^moderation/cases/${UUID}/appeal$`)],
+  ["POST", new RegExp(`^songs/${UUID}/takes/[1-9][0-9]?/appeal$`)],
+  ["POST", new RegExp(`^songs/${UUID}/commercial-licence$`)],
+  ["GET", /^licences\/quota$/],
+  ["GET", /^certificates\/BM-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/],
+  ["GET", /^admin\/users$/],
+  ["POST", /^admin\/users\/suspend$/],
+  ["GET", /^admin\/audit$/],
+  ["GET", /^admin\/moderation$/],
+  ["POST", new RegExp(`^admin/moderation/${UUID}/decision$`)],
+  ["GET", new RegExp(`^admin/songs/${UUID}/takes/[1-9][0-9]?/audio$`)],
 ];
 
 export function isAllowed(method: string, path: string): boolean {

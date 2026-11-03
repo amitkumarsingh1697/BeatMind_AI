@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { clock, spokenTime } from "@/lib/format";
+import { appText } from "@/lib/i18n";
+import type { Locale } from "@/lib/messages";
 import AiLabel from "./AiLabel";
 import { MuteIcon, PauseIcon, PlayIcon, VolumeIcon } from "./Icons";
 
@@ -20,13 +22,17 @@ export default function Player({
   takeLabel,
   compact = false,
   durationHint,
+  locale = "en",
 }: {
   src: string;
   title: string;
   takeLabel?: string;
   compact?: boolean;
   durationHint?: number;
+  locale?: Locale;
 }) {
+  const all = appText(locale);
+  const t = all.player;
   const audio = useRef<HTMLAudioElement>(null);
   const [isPlaying, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -34,7 +40,7 @@ export default function Player({
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState(false);
-  const name = takeLabel ? `${takeLabel} of ${title}` : title;
+  const name = takeLabel ? t.of(takeLabel, title) : title;
 
   useEffect(() => {
     const el = audio.current;
@@ -75,7 +81,7 @@ export default function Player({
   const fill = `${Math.min(100, (time / max) * 100)}%`;
 
   return (
-    <div className={compact ? "player compact" : "player"} role="group" aria-label={`Player: ${name}`}>
+    <div className={compact ? "player compact" : "player"} role="group" aria-label={t.player(name)}>
       <audio
         ref={audio}
         src={src}
@@ -93,7 +99,7 @@ export default function Player({
           type="button"
           className={compact ? "play-btn sm" : "play-btn"}
           onClick={toggle}
-          aria-label={`${isPlaying ? "Pause" : "Play"} ${name}`}
+          aria-label={`${isPlaying ? t.pause : t.play}: ${name}`}
         >
           {isPlaying ? <PauseIcon size={compact ? 18 : 24} /> : <PlayIcon size={compact ? 18 : 24} />}
         </button>
@@ -101,7 +107,7 @@ export default function Player({
           {!compact && (
             <div className="spread">
               <p className="player-title">{takeLabel ?? title}</p>
-              <AiLabel />
+              <AiLabel text={all.common.ai} />
             </div>
           )}
           <input
@@ -112,8 +118,8 @@ export default function Player({
             step={5}
             value={Math.min(time, max)}
             onChange={(e) => seek(Number(e.target.value))}
-            aria-label={`Position in ${name}`}
-            aria-valuetext={`${spokenTime(time)} of ${spokenTime(duration)}`}
+            aria-label={t.position(name)}
+            aria-valuetext={`${spokenTime(time, all.time)} ${all.time.of} ${spokenTime(duration, all.time)}`}
             style={{ ["--fill" as string]: fill }}
           />
           <div className="spread">
@@ -131,7 +137,7 @@ export default function Player({
                     setMuted(next);
                     if (audio.current) audio.current.muted = next;
                   }}
-                  aria-label={muted ? "Unmute" : "Mute"}
+                  aria-label={muted ? t.unmute : t.mute}
                   aria-pressed={muted}
                 >
                   {muted ? <MuteIcon size={18} /> : <VolumeIcon size={18} />}
@@ -148,7 +154,7 @@ export default function Player({
                     setVolume(v);
                     if (audio.current) audio.current.volume = v;
                   }}
-                  aria-label="Volume"
+                  aria-label={t.volume}
                   aria-valuetext={`${Math.round(volume * 100)}%`}
                   style={{ ["--fill" as string]: `${volume * 100}%` }}
                 />
@@ -159,7 +165,7 @@ export default function Player({
       </div>
       {error && (
         <p className="small" role="alert" style={{ color: "var(--danger)", margin: 0 }}>
-          This take could not be played. Try again in a moment.
+          {t.error}
         </p>
       )}
     </div>

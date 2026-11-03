@@ -2,7 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-export type Me = { id: string; email: string; needsProfile: boolean; admin: boolean; plan: "free" | "creator" | "pro" };
+export type Me = {
+  id: string;
+  email: string;
+  needsProfile: boolean;
+  /** An admin email: the console still needs the second factor (adminVerified). */
+  admin: boolean;
+  adminVerified?: boolean;
+  plan: "free" | "creator" | "pro";
+  locale?: "en" | "hi";
+  suspended?: boolean;
+  termsVersion?: string | null;
+};
 
 /** The signed-in account: undefined while loading, null when signed out. */
 export function useMe() {

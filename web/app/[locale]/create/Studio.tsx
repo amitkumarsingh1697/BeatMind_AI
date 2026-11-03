@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import RequireAccount, { AccountBar } from "@/components/Account";
 import AiLabel from "@/components/AiLabel";
+import Blocked from "@/components/Blocked";
 import { MusicIcon, PenIcon, SparkleIcon } from "@/components/Icons";
 import Player from "@/components/Player";
-import { languageTag, problem } from "@/lib/format";
+import { count, languageTag, problem, type Problem } from "@/lib/format";
+import { appText, errorText, type AppText } from "@/lib/i18n";
 import { countGraphemes } from "@/lib/graphemes";
 import type { Locale } from "@/lib/messages";
 import type { Me } from "@/lib/session";
@@ -15,7 +17,6 @@ const MAX_PROMPT = 500;
 const MAX_LYRICS = 3000;
 const MAX_TITLE = 100;
 const SETTINGS_KEY = "bm_create_settings";
-const EXAMPLES = ["Chill rain vlog with soft piano", "Shaadi dance with dhol and shehnai", "Motivational gym track, hard drums"];
 
 type Mode = "vibe" | "lyrics";
 type Take = { index: number; status: string; audioUrl: string | null; format: string | null };
@@ -31,13 +32,10 @@ type Generation = {
 };
 type Allowance = { plan: string; window: "day" | "month"; limit: number; used: number; remaining: number; creditsPerRequest: number; resetsAt: string };
 type Settings = { mode: Mode; language: string; duration: number; vocalType: string; instrumental: boolean };
+type Language = { code: string; languageTag: string; experimental: boolean };
+type Draft = { id: string; status: "writing" | "ready" | "blocked" | "failed"; lyrics: string | null; languageTag: string; message: string | null };
 
-const STATUS_TEXT: Record<Generation["status"], string> = {
-  queued: "Waiting for a free studio…",
-  running: "Making your two takes…",
-  succeeded: "Your takes are ready.",
-  failed: "We could not make this song.",
-};
+const LANGUAGE_CODES = ["hi", "hinglish", "en"];
 
 function loadSettings(locale: Locale): Settings {
   const fallback: Settings = { mode: "vibe", language: locale === "hi" ? "hi" : "en", duration: 60, vocalType: "any", instrumental: false };
@@ -66,6 +64,12 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
   const [lyrics, setLyrics] = useState("");
   const [title, setTitle] = useState("");
   const [error, setError] = useState<{ detail: string; field: string | null } | null>(null);
+  const [blocked, setBlocked] = useState<Problem | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [languages, setLanguages] = useState<Language[]>([]);
+  const lyricsRef = useRef<HTMLTextAreaElement>(null);
+  const t = appText(locale);
+  const c = t.create;
   const [busy, setBusy] = useState(false);
   const [songs, setSongs] = useState<Generation[]>([]);
   const [allowance, setAllowance] = useState<Allowance | null>(null);
@@ -111,6 +115,10 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
   useEffect(() => {
     const open = streams.current;
     loadAllowance();
+    fetch("/v1/languages", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setLanguages)
+      .catch(() => setLanguages([]));
     fetch("/v1/generations", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : []))
       .then((list: Generation[]) => {
@@ -127,6 +135,7 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
   async function create(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setBlocked(null);
     setBusy(true);
     const body: Record<string, unknown> = {
       kind: "song",
@@ -139,6 +148,7 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
     if (mode === "lyrics") {
       body.lyrics = lyrics;
       body.title = title || undefined;
+      body.lyricsDraftId = draftId ?? undefined;
     } else {
       body.instrumental = settings.instrumental;
     }
@@ -152,8 +162,12 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
     turnstile.reset();
     if (!r.ok) {
       const p = await problem(r);
+      if (p.code?.startsWith("moderation_")) {
+        setBlocked(p);
+        return;
+      }
       const field = p.code?.startsWith("invalid_") ? p.code.slice("invalid_".length) : null;
-      setError({ detail: p.detail, field });
+      setError({ detail: errorText(locale, p), field });
       loadAllowance();
       return;
     }
@@ -164,55 +178,63 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
   }
 
   const fieldError = (name: string) => (error?.field === name ? error.detail : null);
+  const experimental = (code: string) => languages.find((l) => l.code === code)?.experimental ?? false;
+
+  function useLyrics(text: string, id: string) {
+    setLyrics(text);
+    setDraftId(id);
+    // Back to the lyrics box so the creator can edit them (UX-A11Y-05: focus moves on purpose).
+    window.setTimeout(() => lyricsRef.current?.focus(), 0);
+  }
 
   return (
     <div className="stack-lg">
       <AccountBar me={me} locale={locale} />
       <header className="page-head">
-        <p className="eyebrow">Create</p>
-        <h1>Make a song</h1>
-        <p>Describe a vibe or bring your own lyrics. You get two takes to choose from.</p>
+        <p className="eyebrow">{c.eyebrow}</p>
+        <h1>{c.heading}</h1>
+        <p>{c.intro}</p>
       </header>
 
-      {allowance && <CreditMeter allowance={allowance} />}
+      {allowance && <CreditMeter allowance={allowance} t={t} />}
 
       <section className="card" aria-labelledby="make-heading">
         <h2 id="make-heading" className="visually-hidden">
-          Song details
+          {c.details}
         </h2>
         <form onSubmit={create} noValidate>
           <fieldset className="segmented">
-            <legend className="visually-hidden">How do you want to start?</legend>
+            <legend className="visually-hidden">{c.startHow}</legend>
             <label>
               <input type="radio" name="mode" value="vibe" checked={mode === "vibe"} onChange={() => update({ mode: "vibe" })} />
               <span className="cluster">
-                <SparkleIcon size={18} /> Describe a vibe
+                <SparkleIcon size={18} /> {c.vibe}
               </span>
             </label>
             <label>
               <input type="radio" name="mode" value="lyrics" checked={mode === "lyrics"} onChange={() => update({ mode: "lyrics" })} />
               <span className="cluster">
-                <PenIcon size={18} /> Use my lyrics
+                <PenIcon size={18} /> {c.lyrics}
               </span>
             </label>
           </fieldset>
 
           {mode === "vibe" ? (
             <div className="field">
-              <label htmlFor="prompt">Vibe, genre, mood and instruments</label>
+              <label htmlFor="prompt">{c.vibeLabel}</label>
               <textarea
                 id="prompt"
                 className="textarea"
                 rows={4}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Rainy evening lofi with soft Hindi female vocals, flute and tabla"
+                placeholder={c.vibePlaceholder}
                 aria-describedby="prompt-count prompt-error"
                 aria-invalid={promptCount > MAX_PROMPT || fieldError("prompt") !== null}
               />
               <div className="spread">
-                <div className="chips" aria-label="Examples">
-                  {EXAMPLES.map((ex) => (
+                <div className="chips" aria-label={c.examples}>
+                  {c.exampleList.map((ex) => (
                     <button key={ex} type="button" className="chip" onClick={() => setPrompt(ex)}>
                       {ex}
                     </button>
@@ -231,22 +253,29 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
           ) : (
             <>
               <div className="field">
-                <label htmlFor="lyrics">Your lyrics</label>
+                <div className="spread">
+                  <label htmlFor="lyrics">{c.lyricsLabel}</label>
+                  {draftId && <AiLabel text={t.common.ai} />}
+                </div>
                 <p id="lyrics-hint" className="hint">
-                  Hindi (Devanagari), Hinglish or English. Mark sections with [Verse] and [Chorus] if you like.
+                  {c.lyricsHint}
                 </p>
                 <textarea
+                  ref={lyricsRef}
                   id="lyrics"
                   className="textarea lyrics"
                   value={lyrics}
                   lang={languageTag(settings.language)}
-                  onChange={(e) => setLyrics(e.target.value)}
-                  placeholder={"[Verse]\nRaat ka safar, tere bina…\n\n[Chorus]\n…"}
+                  onChange={(e) => {
+                    setLyrics(e.target.value);
+                    if (e.target.value.trim() === "") setDraftId(null);
+                  }}
+                  placeholder={c.lyricsPlaceholder}
                   aria-describedby="lyrics-hint lyrics-count lyrics-error"
                   aria-invalid={lyricsCount > MAX_LYRICS || fieldError("lyrics") !== null}
                 />
                 <p id="lyrics-count" className={lyricsCount > MAX_LYRICS ? "counter over" : "counter"}>
-                  {lyricsCount.toLocaleString("en-IN")} / {MAX_LYRICS.toLocaleString("en-IN")} characters
+                  {count(lyricsCount, t.intlLocale)} / {count(MAX_LYRICS, t.intlLocale)} {c.characters}
                 </p>
                 {fieldError("lyrics") && (
                   <p id="lyrics-error" className="error">
@@ -254,15 +283,16 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
                   </p>
                 )}
               </div>
+              <LyricWriter locale={locale} language={settings.language} onUse={useLyrics} />
               <div className="grid-2">
                 <div className="field">
-                  <label htmlFor="style">Style</label>
+                  <label htmlFor="style">{c.style}</label>
                   <input
                     id="style"
                     className="input"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Slow acoustic ballad, guitar and strings"
+                    placeholder={c.stylePlaceholder}
                     aria-describedby="style-count"
                     aria-invalid={promptCount > MAX_PROMPT || fieldError("prompt") !== null}
                   />
@@ -271,13 +301,13 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
                   </p>
                 </div>
                 <div className="field">
-                  <label htmlFor="title">Title (optional)</label>
+                  <label htmlFor="title">{c.title}</label>
                   <input
                     id="title"
                     className="input"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="From your first line if empty"
+                    placeholder={c.titlePlaceholder}
                     aria-invalid={titleCount > MAX_TITLE || fieldError("title") !== null}
                     aria-describedby="title-error"
                   />
@@ -293,25 +323,39 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
 
           <div className="grid-2">
             <div className="field">
-              <label htmlFor="language">Vocal language</label>
-              <select id="language" className="select" value={settings.language} onChange={(e) => update({ language: e.target.value })}>
-                <option value="hi">Hindi</option>
-                <option value="hinglish">Hinglish</option>
-                <option value="en">English</option>
+              <label htmlFor="language">{c.language}</label>
+              <select
+                id="language"
+                className="select"
+                value={settings.language}
+                onChange={(e) => update({ language: e.target.value })}
+                aria-describedby={experimental(settings.language) ? "language-note" : undefined}
+              >
+                {LANGUAGE_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {t.languages[code]}
+                    {experimental(code) ? ` (${t.common.experimental})` : ""}
+                  </option>
+                ))}
               </select>
+              {experimental(settings.language) && (
+                <p id="language-note" className="hint">
+                  <span className="badge badge-accent">{t.common.experimental}</span> {c.experimentalNote}
+                </p>
+              )}
             </div>
             <div className="field">
-              <label htmlFor="length">Length</label>
+              <label htmlFor="length">{c.length}</label>
               <select id="length" className="select" value={settings.duration} onChange={(e) => update({ duration: Number(e.target.value) })}>
-                <option value={30}>30 seconds</option>
-                <option value={60}>1 minute</option>
-                <option value={120}>2 minutes</option>
-                <option value={180}>3 minutes</option>
-                <option value={240}>4 minutes</option>
+                {[30, 60, 120, 180, 240].map((n) => (
+                  <option key={n} value={n}>
+                    {c.lengths[n]}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="field">
-              <label htmlFor="voice">Voice</label>
+              <label htmlFor="voice">{c.voice}</label>
               <select
                 id="voice"
                 className="select"
@@ -319,21 +363,24 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
                 disabled={mode === "vibe" && settings.instrumental}
                 onChange={(e) => update({ vocalType: e.target.value })}
               >
-                <option value="any">Let BeatMind choose</option>
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-                <option value="duet">Duet</option>
+                {["any", "female", "male", "duet"].map((v) => (
+                  <option key={v} value={v}>
+                    {c.voices[v]}
+                  </option>
+                ))}
               </select>
             </div>
             {mode === "vibe" && (
               <label className="check" style={{ alignSelf: "end", minBlockSize: "var(--tap)" }}>
                 <input type="checkbox" checked={settings.instrumental} onChange={(e) => update({ instrumental: e.target.checked })} />
-                <span>Instrumental (no vocals)</span>
+                <span>{c.instrumental}</span>
               </label>
             )}
           </div>
 
           {turnstile.enabled && <div ref={turnstile.ref} />}
+
+          {blocked && <Blocked key={blocked.caseId ?? "blocked"} locale={locale} p={blocked} onClose={() => setBlocked(null)} />}
 
           {error && !error.field && (
             <div className="notice notice-danger" role="alert">
@@ -348,16 +395,16 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
 
           <div className="spread">
             <p className="small muted" style={{ margin: 0 }}>
-              Every song is labelled as AI-generated.
+              {c.labelNote}
             </p>
             <button className="btn btn-primary btn-lg" type="submit" disabled={busy || overLimit || noCredits}>
               {busy ? (
                 <>
-                  <span className="spinner" aria-hidden="true" /> Sending…
+                  <span className="spinner" aria-hidden="true" /> {t.common.sending}
                 </>
               ) : (
                 <>
-                  Make two takes <span className="cost">· 2 credits</span>
+                  {c.make} <span className="cost">{c.cost}</span>
                 </>
               )}
             </button>
@@ -370,26 +417,22 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
   );
 }
 
-function CreditMeter({ allowance }: { allowance: Allowance }) {
+function CreditMeter({ allowance, t }: { allowance: Allowance; t: AppText }) {
+  const c = t.create;
   const left = allowance.remaining;
   const pct = allowance.limit > 0 ? (left / allowance.limit) * 100 : 0;
-  const period = allowance.window === "day" ? "today" : "this month";
   return (
-    <section className="card tight flat meter" aria-label="Credits">
+    <section className="card tight flat meter" aria-label={c.credits}>
       <div className="spread">
-        <strong>
-          {left} of {allowance.limit} credits left {period}
-        </strong>
-        <span className="small muted">1 credit = 1 take · failed takes are refunded</span>
+        <strong>{c.creditsLeft(left, allowance.limit, allowance.window === "day")}</strong>
+        <span className="small muted">{c.creditRule}</span>
       </div>
       <div className="meter-track" aria-hidden="true">
         <div className="meter-fill" style={{ inlineSize: `${pct}%` }} />
       </div>
       {left < allowance.creditsPerRequest && (
         <p className="small" role="status" style={{ margin: 0 }}>
-          {allowance.window === "day"
-            ? "You have used today's free songs. Your credits come back at midnight India time."
-            : "You have used this month's credits."}
+          {allowance.window === "day" ? c.outOfDay : c.outOfMonth}
         </p>
       )}
     </section>
@@ -397,12 +440,14 @@ function CreditMeter({ allowance }: { allowance: Allowance }) {
 }
 
 function RecentSongs({ songs, locale }: { songs: Generation[]; locale: Locale }) {
+  const t = appText(locale);
+  const c = t.create;
   if (songs.length === 0) {
     return (
       <div className="empty">
         <MusicIcon size={32} />
-        <h2>Your songs will appear here</h2>
-        <p>Each request makes two takes in about a minute. Keep the one you like.</p>
+        <h2>{c.emptyHeading}</h2>
+        <p>{c.emptyText}</p>
       </div>
     );
   }
@@ -410,32 +455,32 @@ function RecentSongs({ songs, locale }: { songs: Generation[]; locale: Locale })
     <section aria-labelledby="recent-heading" className="stack">
       <div className="spread">
         <h2 id="recent-heading" style={{ margin: 0 }}>
-          Latest songs
+          {c.latest}
         </h2>
-        <a href={`/${locale}/library`}>See all in your library</a>
+        <a href={`/${locale}/library`}>{c.seeAll}</a>
       </div>
       <ul className="song-list">
         {songs.map((g) => {
           const title = g.title ?? g.prompt;
-          const ready = g.takes.filter((t) => t.audioUrl);
+          const ready = g.takes.filter((tk) => tk.audioUrl);
           return (
             <li key={g.id} className="card tight flat stack">
               <div className="spread">
                 <p className="player-title" style={{ fontFamily: "var(--font-display)", fontSize: "var(--step-1)" }}>
                   {g.songId ? <a href={`/${locale}/songs/${g.songId}`}>{title}</a> : title}
                 </p>
-                <AiLabel />
+                <AiLabel text={t.common.ai} />
               </div>
               <p className="cluster small muted" role="status" aria-live="polite" style={{ margin: 0 }}>
                 {(g.status === "queued" || g.status === "running") && <span className="spinner" aria-hidden="true" />}
-                {STATUS_TEXT[g.status]}
-                {g.status === "failed" && g.refundedCredits > 0 && ` We refunded ${g.refundedCredits} credits.`}
-                {g.status === "succeeded" && g.refundedCredits > 0 && ` One take was held back and its credit refunded.`}
+                {c.status[g.status]}
+                {g.status === "failed" && g.refundedCredits > 0 && c.refunded(g.refundedCredits)}
+                {g.status === "succeeded" && g.refundedCredits > 0 && c.heldBack}
               </p>
               {ready.length > 0 && (
                 <div className="grid-2">
-                  {ready.map((t) => (
-                    <Player key={t.index} src={t.audioUrl!} title={title} takeLabel={`Take ${t.index}`} compact />
+                  {ready.map((tk) => (
+                    <Player key={tk.index} src={tk.audioUrl!} title={title} takeLabel={c.take(tk.index)} compact locale={locale} />
                   ))}
                 </div>
               )}
@@ -443,6 +488,140 @@ function RecentSongs({ songs, locale }: { songs: Generation[]; locale: Locale })
           );
         })}
       </ul>
+    </section>
+  );
+}
+
+/**
+ * AI lyric writer (US-018): topic and mood in, sectioned lyrics out, in the chosen vocal language.
+ * Writing lyrics costs no credits. What the AI wrote is screened by the API before it is shown.
+ */
+function LyricWriter({ locale, language, onUse }: { locale: Locale; language: string; onUse: (lyrics: string, id: string) => void }) {
+  const t = appText(locale);
+  const w = t.writer;
+  const [open, setOpen] = useState(false);
+  const [topic, setTopic] = useState("");
+  const [mood, setMood] = useState("");
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [error, setError] = useState<Problem | null>(null);
+  const [busy, setBusy] = useState(false);
+  const timer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (timer.current) window.clearTimeout(timer.current);
+  }, []);
+
+  function poll(id: string, wait = 1000) {
+    timer.current = window.setTimeout(async () => {
+      const r = await fetch(`/v1/lyrics/${id}`, { cache: "no-store" });
+      if (!r.ok) {
+        setBusy(false);
+        return setError(await problem(r));
+      }
+      const d: Draft = await r.json();
+      setDraft(d);
+      if (d.status === "writing") poll(id, Math.min(wait * 1.5, 4000));
+      else setBusy(false);
+    }, wait);
+  }
+
+  async function write() {
+    if (busy || topic.trim() === "") return;
+    setError(null);
+    setDraft(null);
+    setBusy(true);
+    const r = await fetch("/v1/lyrics", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ topic, mood: mood || undefined, language }),
+    });
+    if (!r.ok) {
+      setBusy(false);
+      return setError(await problem(r));
+    }
+    const d: Draft = await r.json();
+    setDraft(d);
+    poll(d.id);
+  }
+
+  if (!open) {
+    return (
+      <button type="button" className="btn btn-secondary" onClick={() => setOpen(true)} aria-expanded={false}>
+        <SparkleIcon size={18} /> {w.open}
+      </button>
+    );
+  }
+
+  return (
+    <section className="card flat stack writer" aria-labelledby="writer-heading">
+      <div className="spread">
+        <h3 id="writer-heading" style={{ margin: 0 }}>
+          {w.heading}
+        </h3>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)} aria-expanded={true}>
+          {t.common.close}
+        </button>
+      </div>
+      <p className="small muted" style={{ margin: 0 }}>
+        {w.intro}
+      </p>
+      {/* A div, not a nested form: the writer sits inside the song form. */}
+      <div className="grid-2" role="group" aria-labelledby="writer-heading">
+        <div className="field" style={{ margin: 0 }}>
+          <label htmlFor="writer-topic">{w.topic}</label>
+          <input id="writer-topic" className="input" value={topic} maxLength={200} onChange={(e) => setTopic(e.target.value)} placeholder={w.topicPlaceholder} onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                write();
+              }
+            }} />
+        </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label htmlFor="writer-mood">{w.mood}</label>
+          <input id="writer-mood" className="input" value={mood} maxLength={100} onChange={(e) => setMood(e.target.value)} placeholder={w.moodPlaceholder} onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                write();
+              }
+            }} />
+        </div>
+      </div>
+      <div className="cluster">
+        <button type="button" className="btn btn-primary" disabled={busy || topic.trim() === ""} onClick={write}>
+          {busy ? (
+            <>
+              <span className="spinner" aria-hidden="true" /> {w.writing}
+            </>
+          ) : draft?.status === "ready" ? (
+            w.again
+          ) : (
+            w.write
+          )}
+        </button>
+        <span className="small muted">{t.languages[language]}</span>
+      </div>
+      <div aria-live="polite">
+        {error && (error.code?.startsWith("moderation_") ? <Blocked locale={locale} p={error} /> : <p className="error">{errorText(locale, error)}</p>)}
+        {draft?.status === "blocked" && <p className="notice notice-danger">{w.blocked}</p>}
+        {draft?.status === "failed" && <p className="notice notice-danger">{w.failed}</p>}
+        {draft?.status === "ready" && draft.lyrics && (
+          <div className="stack">
+            <div className="spread">
+              <AiLabel text={t.common.ai} />
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => onUse(draft.lyrics!, draft.id)}>
+                {w.use}
+              </button>
+            </div>
+            {/* Focusable so keyboard users can scroll long lyrics (axe scrollable-region-focusable). */}
+            <pre className="lyrics-preview" lang={draft.languageTag} tabIndex={0} role="region" aria-label={w.heading}>
+              {draft.lyrics}
+            </pre>
+            <p className="small muted" style={{ margin: 0 }}>
+              {w.aiNote}
+            </p>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

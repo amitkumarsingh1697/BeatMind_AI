@@ -37,7 +37,7 @@ class CapsTest extends SongApiSupport {
         resetAll();
         given(turnstile.verify(any(), any())).willReturn(true);
         tara = adult("tara@example.com");
-        admin = SignInHelper.signIn(mvc, "admin@example.com");
+        admin = SignInHelper.signInAdmin(mvc, "admin@example.com");
     }
 
     private void setDailyCap(Cookie who, int credits, int expectStatus) throws Exception {
