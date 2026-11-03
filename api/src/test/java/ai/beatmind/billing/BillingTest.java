@@ -102,9 +102,9 @@ class BillingTest {
         assertThat(jdbc.sql("SELECT amount_minor FROM subscription").query(Long.class).single()).isEqualTo(14900);
         assertThat(jdbc.sql("SELECT billing_country FROM app_user WHERE id = :id").param("id", ashaId)
                 .query(String.class).single()).isEqualTo("IN");
-        // Other countries wait for the merchant of record (US-035).
+        // Other countries go to the merchant of record (US-035, PaddleTest).
         Cookie sam = SignInHelper.signInAdult(mvc, "sam@example.com");
-        checkout(sam, "creator", "GB").andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("international_soon"));
+        checkout(sam, "creator", "GB").andExpect(status().isCreated()).andExpect(jsonPath("$.provider").value("paddle"));
         checkout(sam, "gold", "IN").andExpect(status().isBadRequest());
         // A card from another country on an Indian price is refunded and gives no plan.
         simulate(asha, "foreign_card").andExpect(jsonPath("$.outcomes[1]").value("billing_country_mismatch"));

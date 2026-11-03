@@ -12,6 +12,7 @@ import type { Me } from "@/lib/session";
 import Blocked from "@/components/Blocked";
 import { DeleteDialog, RenameDialog } from "../../library/Library";
 import EditPanel from "./EditPanel";
+import StemsPanel from "./StemsPanel";
 
 type Take = {
   index: number;
@@ -219,6 +220,16 @@ function SongView({ me, locale, id }: { me: Me; locale: Locale; id: string }) {
           title={song.title}
           locale={locale}
           onChange={load}
+        />
+      )}
+      {song.status === "succeeded" && current?.audioUrl && current.status === "ready" && song.rightsStatus !== "disabled" && (
+        <StemsPanel
+          key={`stems-${current.index}`}
+          songId={song.id}
+          take={current.index}
+          version={current.version}
+          allowed={me.plan !== "free" || song.rightsStatus === "user_owned"}
+          locale={locale}
         />
       )}
 

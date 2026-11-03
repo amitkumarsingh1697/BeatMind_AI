@@ -85,6 +85,12 @@ const ROUTES: [string, RegExp][] = [
   ["POST", /^verify$/],
   ["GET", new RegExp(`^verify/${UUID}$`)],
   ["GET", /^admin\/fallback$/],
+  // Sprint 6: the merchant of record outside India (US-035) and stems (US-039)
+  ["POST", /^webhooks\/paddle$/],
+  ["GET", new RegExp(`^songs/${UUID}/takes/[1-9][0-9]?/stems$`)],
+  ["POST", new RegExp(`^songs/${UUID}/takes/[1-9][0-9]?/stems$`)],
+  ["POST", new RegExp(`^songs/${UUID}/takes/[1-9][0-9]?/stems/(vocals|drums|bass|other)/downloads$`)],
+  ["GET", /^downloads\/stems\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/],
 ];
 
 export function isAllowed(method: string, path: string): boolean {

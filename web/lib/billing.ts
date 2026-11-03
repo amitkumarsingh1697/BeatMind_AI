@@ -34,7 +34,12 @@ export type BillingSummary = {
 };
 export type CheckoutStart = {
   id: string;
+  /** Razorpay in India, Paddle (merchant of record) everywhere else (ADR-009, US-035). */
+  provider: "razorpay" | "paddle";
   mode: "stub" | "test" | "live";
+  clientToken: string | null;
+  priceId: string | null;
+  environment: "sandbox" | "production" | null;
   keyId: string | null;
   providerSubscriptionId: string;
   shortUrl: string | null;
@@ -68,6 +73,17 @@ export const TEST_OUTCOMES: Record<string, { outcome: string; method: string }> 
   pending: { outcome: "pending", method: "upi" },
 };
 
+/** Outside India there is no UPI: card payments through the merchant of record (US-035). */
+export const PADDLE_TEST_OUTCOMES: Record<string, { outcome: string; method: string }> = {
+  card: { outcome: "charged", method: "card" },
+  other_country: { outcome: "foreign_card", method: "card" },
+  card_pending: { outcome: "pending", method: "card" },
+};
+
+export function testOutcomes(provider: CheckoutStart["provider"]) {
+  return provider === "paddle" ? PADDLE_TEST_OUTCOMES : TEST_OUTCOMES;
+}
+
 type RazorpayOptions = {
   key: string;
   subscription_id: string;
@@ -98,6 +114,58 @@ export function openRazorpay(options: RazorpayOptions): Promise<void> {
     script.async = true;
     script.onload = open;
     script.onerror = () => reject(new Error("Razorpay did not load"));
+    document.head.appendChild(script);
+  });
+}
+
+type PaddleCheckout = {
+  items: { priceId: string; quantity: number }[];
+  customer?: { email?: string; address?: { countryCode: string } };
+  customData?: Record<string, string>;
+  settings?: { displayMode?: "overlay"; locale?: string; allowLogout?: boolean };
+};
+type PaddleJs = {
+  Environment: { set: (env: "sandbox") => void };
+  Initialize: (options: { token: string; eventCallback?: (e: { name: string }) => void }) => void;
+  Checkout: { open: (options: PaddleCheckout) => void };
+};
+declare global {
+  interface Window {
+    Paddle?: PaddleJs;
+  }
+}
+
+/**
+ * Paddle checkout overlay (US-035). Paddle is the merchant of record: it shows the price for the
+ * billing country with local tax added, takes the card and sends us signed notifications. Our
+ * subscription id goes in custom data so the first notification finds it.
+ */
+export function openPaddle(start: CheckoutStart, email: string, locale: string, onComplete: () => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const open = () => {
+      const paddle = window.Paddle;
+      if (!paddle || !start.clientToken || !start.priceId) return reject(new Error("Paddle did not load"));
+      if (start.environment !== "production") paddle.Environment.set("sandbox");
+      paddle.Initialize({
+        token: start.clientToken,
+        eventCallback: (e) => {
+          if (e.name === "checkout.completed") onComplete();
+        },
+      });
+      paddle.Checkout.open({
+        items: [{ priceId: start.priceId, quantity: 1 }],
+        customer: { email, address: { countryCode: start.billingCountry } },
+        customData: { bmSubscriptionId: start.id },
+        settings: { displayMode: "overlay", locale, allowLogout: false },
+      });
+      resolve();
+    };
+    if (window.Paddle) return open();
+    const script = document.createElement("script");
+    script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
+    script.async = true;
+    script.onload = open;
+    script.onerror = () => reject(new Error("Paddle did not load"));
     document.head.appendChild(script);
   });
 }

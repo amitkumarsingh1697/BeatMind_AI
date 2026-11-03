@@ -91,10 +91,23 @@ class SongPurge {
                     addKey(keys, t);
                     t.path("assets").properties().forEach(e -> addKey(keys, e.getValue()));
                 }));
+        // Edited versions (US-038) with their unwatermarked renders, and separated stems (US-039).
+        jdbc.sql("SELECT assets::text AS assets, raw_key FROM take_version WHERE song_id = :id").param("id", id)
+                .query((rs, n) -> {
+                    json.readTree(rs.getString("assets")).properties().forEach(e -> addKey(keys, e.getValue()));
+                    if (rs.getString("raw_key") != null) {
+                        keys.add(rs.getString("raw_key"));
+                    }
+                    return null;
+                }).list();
+        jdbc.sql("SELECT assets::text FROM take_stems WHERE song_id = :id").param("id", id).query(String.class).list()
+                .forEach(a -> json.readTree(a).properties().forEach(e -> addKey(keys, e.getValue())));
         for (String key : keys) {
             audio.delete(key);
         }
         jdbc.sql("UPDATE take SET assets = '{}'::jsonb WHERE song_id = :id").param("id", id).update();
+        jdbc.sql("UPDATE take_version SET assets = '{}'::jsonb, raw_key = NULL WHERE song_id = :id").param("id", id).update();
+        jdbc.sql("UPDATE take_stems SET assets = '{}'::jsonb WHERE song_id = :id").param("id", id).update();
         jdbc.sql("""
                 UPDATE song SET title = 'Deleted song', title_latin = 'Deleted song', prompt = '', lyrics = NULL,
                                 search_text = '', search_key = '', client_ip_hash = NULL,

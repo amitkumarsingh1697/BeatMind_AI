@@ -18,7 +18,7 @@ public final class SignInHelper {
         jdbc.sql("""
                 TRUNCATE generation_job, song, take, provenance_event, credit_ledger, app_setting, user_session,
                          email_code, oauth_state, admin_audit, moderation_case, lyric_draft, certificate, user_mfa,
-                         mfa_recovery_code, similarity_reference, similarity_hash, takedown_request, share_link, take_version, verify_check,
+                         mfa_recovery_code, similarity_reference, similarity_hash, takedown_request, share_link, take_version, take_stems, verify_check,
                          payment_webhook, billing_period, subscription, app_user CASCADE
                 """).update();
     }

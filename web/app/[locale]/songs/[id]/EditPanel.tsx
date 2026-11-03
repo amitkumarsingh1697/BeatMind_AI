@@ -72,6 +72,10 @@ export default function EditPanel({
 
   useEffect(() => {
     setEnd(String(Math.floor(currentLength)));
+    // Default fades that fit a short take: at most a third of it each, and 2 and 4 seconds.
+    const third = Math.floor((currentLength / 3) * 2) / 2;
+    setFadeIn(String(Math.min(2, third)));
+    setFadeOut(String(Math.min(4, third)));
   }, [currentLength]);
 
   useEffect(() => {

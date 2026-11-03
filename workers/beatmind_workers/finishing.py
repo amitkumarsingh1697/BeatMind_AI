@@ -122,11 +122,18 @@ class Finisher:
     def __init__(self, credentials: ContentCredentials | None = None) -> None:
         self.credentials = credentials or ContentCredentials()
 
-    def finish(self, audio: bytes, payload: dict[str, Any], take_index: int) -> FinishedTake:
+    def finish(
+        self, audio: bytes, payload: dict[str, Any], take_index: int, formats: tuple[str, ...] | None = None
+    ) -> FinishedTake:
         song_id = str(payload.get("songId", ""))
         mark = watermark.payload_for(song_id, take_index)
         samples = watermark.embed(decode(audio), mark)
         metadata = tags(payload, take_index)
+        stem = payload.get("stem")
+        if stem:
+            # US-039: one separated stem of the take, labelled as such.
+            metadata["title"] = metadata["title"][:-1] + f", {stem} stem)"
+            metadata["BEATMIND_STEM"] = str(stem)
         details = {
             "songId": song_id,
             "take": take_index,
@@ -138,8 +145,12 @@ class Finisher:
             # US-038: an edited version of the take, and what was done to it.
             details["version"] = int(payload["version"])
             details["edit"] = str(payload.get("op", ""))
+        if stem:
+            details["stem"] = str(stem)
         finished = FinishedTake(watermark_id=mark, seconds=round(len(samples) / watermark.SAMPLE_RATE, 3))
         for name, (container, content_type, _) in ENCODINGS.items():
+            if formats is not None and name not in formats:
+                continue
             encoded = encode(samples, name, metadata)
             signed = self.credentials.sign(encoded, container, metadata["title"], details)
             finished.assets[name] = Asset(signed, content_type)

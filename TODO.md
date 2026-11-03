@@ -211,7 +211,38 @@ test dialog that plays the Razorpay events through the real, signed webhook hand
 - [ ] **Plan allowances** (Founder): the plan cards say 600 and 2,000 credits a month, from the
       placeholder allowances in `application.yml`; change both together when pricing is final.
 
-## Sprint 6: international payments
+## Sprint 6: international payments and stems (code runs locally; these steps make it real)
 
-- [ ] Founder: sign up with a merchant of record for international payments (US-035).
-- [ ] Founder: have counsel review the terms and the certificate wording before paid launch.
+Locally, Paddle runs in **stub mode** like Razorpay: checkout outside India opens the test dialog,
+which plays Paddle's notifications through the real, signed handler. Stems use a band-split stub.
+
+- [ ] **Paddle account** (Founder): sign up with Paddle as merchant of record (ADR-009); Paddle
+      checks the business before payouts. Confirm it supports country-specific prices for every
+      band country (C-04) and that AI-music subscriptions are allowed under its acceptable use
+      policy. If not, Lemon Squeezy is the fallback in ADR-009.
+- [ ] **Paddle products and prices** (Any developer, after the account): create Creator and Pro
+      products with monthly prices for variants A and B in USD, add country price overrides that
+      match `api/src/main/resources/pricing/country-bands.csv`, and set
+      `PADDLE_PRICES="creator-A=pri_..,creator-B=pri_..,pro-A=pri_..,pro-B=pri_.."`. Prices are
+      tax-exclusive; Paddle adds VAT or sales tax at checkout.
+- [ ] **Paddle keys** (Any developer): set `PADDLE_API_KEY`, `PADDLE_CLIENT_TOKEN` and, in staging,
+      `PADDLE_API_URL=https://sandbox-api.paddle.com` with `BEATMIND_BILLING_MODE=test`. Add the
+      app's domain to Paddle's approved checkout domains.
+- [ ] **Paddle notifications** (Any developer): add a notification destination for
+      `https://<host>/v1/webhooks/paddle` with `subscription.created`, `subscription.activated`,
+      `subscription.updated`, `subscription.past_due`, `subscription.paused`,
+      `subscription.resumed`, `subscription.canceled`, `transaction.completed`,
+      `adjustment.created` and `adjustment.updated`; set its secret key as
+      `PADDLE_WEBHOOK_SECRET`. Then run TC-REQ-F-42-02 by hand in the sandbox with Paddle's test
+      cards, and check that `transaction.completed` carries the address country (the handler
+      reads `data.address.country_code`; if Paddle sends only `address_id`, fetch the address).
+- [ ] **Demucs on the GPU worker** (Any developer, rented GPU): install `demucs` (4.1, MIT) and
+      run a worker with `BEATMIND_JOB_KINDS=stems BEATMIND_STEMS=demucs`. Measure SDR per stem on
+      a few licensed multitrack songs (for example the MUSDB18 test set, research licence only)
+      with `stems.evaluate`, record it in `docs/06-ai/model-register.md`, and check the sum test
+      limit (`SUM_MIN_SNR_DB`, 30 dB) against real Demucs output.
+- [ ] **Counsel review** (Founder): the terms and certificate wording before paid launch,
+      including that Paddle is the seller outside India, and the stems text (`stems` in
+      `web/lib/i18n.ts`).
+- [ ] **Native Hindi review** (Founder): the Sprint 6 text in `web/lib/i18n.ts` (`stems`,
+      `billing.paddleNote` and the new test payment and history lines).

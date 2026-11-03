@@ -49,7 +49,9 @@ class EditController {
 
     @GetMapping("/v1/songs/{id}/takes/{index}/versions")
     List<Edits.Version> versions(@PathVariable UUID id, @PathVariable int index) {
-        owned(id);
+        SongStore.Song song = owned(id);
+        // Version 1 is recorded on first look, so the editor starts from the take's measured length.
+        songs.take(id, index).filter(t -> "ready".equals(t.status())).ifPresent(t -> edits.ensureOriginal(song, t));
         return edits.versions(id, index);
     }
 
@@ -70,7 +72,8 @@ class EditController {
         }
     }
 
-    private void owned(UUID id) {
-        songs.find(id, CurrentUser.get().orElseThrow().id()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    private SongStore.Song owned(UUID id) {
+        return songs.find(id, CurrentUser.get().orElseThrow().id())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 }

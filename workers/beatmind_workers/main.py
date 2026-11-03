@@ -10,7 +10,7 @@ import time
 
 import psycopg
 
-from beatmind_workers import beat, editing, finishing, lyrics, queue, stub, verify
+from beatmind_workers import beat, editing, finishing, lyrics, queue, stems, stub, verify
 from beatmind_workers.acestep import AceStepRunner, FetchedTake
 from beatmind_workers.finishing import Finisher
 from beatmind_workers.lyria import LyriaRunner
@@ -108,6 +108,32 @@ def run_edit(
     return {"takes": [entry]}
 
 
+def run_stems(
+    job: queue.Job, store: ObjectStore, finisher: Finisher, separator: stems.Separator, model: str
+) -> dict:
+    """US-039: four stems of one version of a take, from its unwatermarked render. The sum test runs
+    on the raw stems; each stem is then finished as a WAV with its own label, mark and C2PA."""
+    p = job.payload
+    index, version = int(p["takeIndex"]), int(p["version"])
+    mix = finishing.decode(store.get(str(p["sourceKey"])))
+    separated = separator(mix)
+    check = stems.sum_check(mix, separated)
+    base = f"stems/{p.get('songId')}/take-{index}-v{version}"
+    assets = {}
+    for name in stems.NAMES:
+        finished = finisher.finish(
+            editing.to_wav(separated[name]), {**p, "stem": name}, index, formats=("wav",)
+        )
+        asset = finished.assets["wav"]
+        assets[name] = {
+            "key": store.put(f"{base}-{name}.wav", asset.data, asset.content_type),
+            "contentType": asset.content_type,
+            "sha256": asset.sha256,
+            "bytes": len(asset.data),
+        }
+    return {"stems": assets, "sumCheck": check, "model": model}
+
+
 def run_verify(job: queue.Job, store: ObjectStore) -> dict:
     """US-021: read the watermark and credentials of an uploaded file, then delete the upload."""
     key = str(job.payload["uploadKey"])
@@ -127,6 +153,7 @@ def run_job(
     screen: Screen | None = None,
     writer: StubLyricWriter | LlmLyricWriter | None = None,
     lyria: LyriaRunner | None = None,
+    separator: tuple[stems.Separator, str] | None = None,
 ) -> dict:
     """Runs one job and returns the result the API reads (JobFinalizer).
 
@@ -140,6 +167,9 @@ def run_job(
         return lyrics.write(job.payload, writer or StubLyricWriter())
     if job.kind == "verify":
         return run_verify(job, store)
+    if job.kind == "stems":
+        sep, model = separator or (stems.stub_separate, "stub-bands")
+        return run_stems(job, store, finisher or Finisher(), sep, model)
     if job.kind == "edit":
         return run_edit(job, store, runner, acestep, finisher or Finisher())
     stored = []
@@ -183,7 +213,7 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     dsn = os.environ["DATABASE_URL"]
     runner = os.environ.get("BEATMIND_RUNNER", "stub")
-    kinds = os.environ.get("BEATMIND_JOB_KINDS", "song,beat,lyrics,edit,verify").split(",")
+    kinds = os.environ.get("BEATMIND_JOB_KINDS", "song,beat,lyrics,edit,verify,stems").split(",")
     # US-016: "self" for our GPU workers; a worker with "lyria" runs the paid fallback.
     providers = os.environ.get("BEATMIND_PROVIDERS", "self").split(",")
     lease = int(os.environ.get("BEATMIND_LEASE_SECONDS", "600"))
@@ -193,6 +223,8 @@ def main() -> None:
     if runner == "acestep":
         acestep = AceStepRunner(os.environ["ACESTEP_URL"], os.environ.get("ACESTEP_API_KEY", ""))
     lyria = LyriaRunner.from_env() if "lyria" in providers else None
+    # US-039: Demucs on the GPU worker; band-split stub locally.
+    separator = stems.separator_from_env(os.environ.get("BEATMIND_STEMS", "stub"))
     # Watermark, AI label and C2PA on every take (REQ-F-30). Off only to debug the model runner.
     finisher = Finisher() if os.environ.get("BEATMIND_FINISHING", "on") != "off" else None
     # US-018: template lyrics unless a lyric model endpoint is configured.
@@ -229,7 +261,7 @@ def main() -> None:
                 continue
             started = time.monotonic()
             try:
-                result = run_job(job, store, runner, acestep, finisher, screen, writer, lyria)
+                result = run_job(job, store, runner, acestep, finisher, screen, writer, lyria, separator)
             except Exception as exc:  # noqa: BLE001 - any model failure is recorded on the job
                 status = queue.fail(conn, job, f"{type(exc).__name__}: {exc}")
                 log.warning("job %s failed (attempt %d, now %s): %s", job.id, job.attempts, status, exc)

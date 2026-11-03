@@ -36,11 +36,14 @@ class JobFinalizer {
     private final LyricDrafts drafts;
     private final ModerationCases cases;
     private final Edits edits;
+    private final Stems stems;
     private final Verifier verifier;
 
     JobFinalizer(JdbcClient jdbc, JsonMapper json, SongStore songs, Credits credits, ProvenanceLedger ledger,
-                 TransactionTemplate tx, LyricDrafts drafts, ModerationCases cases, Edits edits, Verifier verifier) {
+                 TransactionTemplate tx, LyricDrafts drafts, ModerationCases cases, Edits edits, Verifier verifier,
+                 Stems stems) {
         this.edits = edits;
+        this.stems = stems;
         this.verifier = verifier;
         this.drafts = drafts;
         this.cases = cases;
@@ -97,9 +100,11 @@ class JobFinalizer {
             jdbc.sql("UPDATE generation_job SET cost_actual_usd = coalesce(:cost, cost_estimate_usd) WHERE id = :id")
                     .param("cost", cost).param("id", job.id()).update();
         }
-        var song = "edit".equals(job.kind()) || "verify".equals(job.kind()) ? java.util.Optional.<SongStore.Song>empty()
-                : songs.byJob(job.id());
-        if ("edit".equals(job.kind())) {
+        boolean takeJob = "edit".equals(job.kind()) || "verify".equals(job.kind()) || "stems".equals(job.kind());
+        var song = takeJob ? java.util.Optional.<SongStore.Song>empty() : songs.byJob(job.id());
+        if ("stems".equals(job.kind())) {
+            stems.finish(job.id(), job.status(), job.result());
+        } else if ("edit".equals(job.kind())) {
             edits.finish(job.id(), job.userId(), job.status(), job.result());
         } else if ("verify".equals(job.kind())) {
             verifier.finish(job.id(), job.status(), job.result());

@@ -107,3 +107,18 @@ test("refuses Sprint 5 lookalikes", () => {
   assert.ok(!isAllowed("DELETE", `songs/${ID}/takes/1/versions/2`));
   assert.ok(!isAllowed("GET", `songs/${ID}/takes/1/versions/0/audio`));
 });
+
+test("forwards the Sprint 6 calls", () => {
+  assert.ok(isAllowed("POST", "webhooks/paddle"));
+  assert.ok(isAllowed("GET", `songs/${ID}/takes/1/stems`));
+  assert.ok(isAllowed("POST", `songs/${ID}/takes/2/stems`));
+  assert.ok(isAllowed("POST", `songs/${ID}/takes/1/stems/vocals/downloads`));
+  assert.ok(isAllowed("GET", "downloads/stems/abc_DEF-1.sig-2"));
+});
+
+test("refuses Sprint 6 lookalikes", () => {
+  assert.ok(!isAllowed("GET", "webhooks/paddle"));
+  assert.ok(!isAllowed("POST", `songs/${ID}/takes/1/stems/guitar/downloads`));
+  assert.ok(!isAllowed("DELETE", `songs/${ID}/takes/1/stems`));
+  assert.ok(!isAllowed("GET", "downloads/stems/../me"));
+});

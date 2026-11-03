@@ -1,4 +1,4 @@
-// Walks the app screens (Sprints 2 to 5, English and Hindi) in a real browser against a running local stack, runs axe-core on
+// Walks the app screens (Sprints 2 to 6, English and Hindi) in a real browser against a running local stack, runs axe-core on
 // each (TC-REQ-NFR-08-01: no serious or critical violations) and saves screenshots.
 //
 //   node e2e/ui-check.mjs [base-url] [screenshot-dir]
@@ -239,6 +239,19 @@ for (const scheme of ["dark", "light"]) {
   await page.locator("li", { hasText: "Version 2" }).getByRole("button", { name: "Use this version" }).click();
   await page.locator("li", { hasText: "Version 2" }).getByText("current").waitFor();
 
+  // Sprint 6: four stems of the current version (US-039), with the sum check.
+  await page.getByRole("heading", { name: "Stems", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Separate into stems" }).click();
+  await page.getByRole("button", { name: "Download Vocals" }).waitFor({ timeout: 60000 });
+  await page.getByText("Checked: the four stems add back up to the take.").waitFor();
+  await page.getByRole("heading", { name: "Stems", exact: true }).scrollIntoViewIfNeeded();
+  await shot(page, `23-stems${suffix}`);
+  await audit(page, `stems (${scheme})`);
+  const stemDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download Drums" }).click();
+  const stemFile = await stemDownload;
+  if (!stemFile.suggestedFilename().endsWith("-drums.wav")) failures.push(`stem download named ${stemFile.suggestedFilename()}`);
+
   await page.goto(`${BASE}/en/settings`);
   await page.getByRole("heading", { name: "Your plan" }).waitFor();
   await page.getByText(/^Renews on/).waitFor();
@@ -251,6 +264,31 @@ for (const scheme of ["dark", "light"]) {
   await page.getByRole("button", { name: "Cancel my plan" }).click();
   await page.getByText(/^Your plan is cancelled/).waitFor();
   await shot(page, `21a-cancelled${suffix}`);
+
+  // Sprint 6: outside India the merchant of record bills (US-035); the stub plays Paddle's events.
+  const abroad = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: scheme });
+  const g = await abroad.newPage();
+  await g.goto(`${BASE}/en/pricing`);
+  await g.getByLabel("Billing country").selectOption("GB");
+  await g.getByText("plus local tax").first().waitFor();
+  await g.getByText(/Paddle is our merchant of record/).waitFor();
+  await shot(g, `24-pricing-international${suffix}`);
+  await audit(g, `pricing outside India (${scheme})`);
+  await g.getByRole("button", { name: "Choose Creator" }).click();
+  await g.getByLabel("Email").fill(`abroad-${scheme}-${Date.now()}@example.com`);
+  await g.getByRole("button", { name: "Email me a sign-in code" }).click();
+  await g.getByRole("button", { name: "Sign in", exact: true }).click();
+  await g.getByLabel("Date of birth").fill("1992-06-01");
+  await g.getByRole("checkbox").check();
+  await g.getByRole("button", { name: "Continue" }).click();
+  await g.getByRole("button", { name: "Pay", exact: true }).click();
+  const paddlePay = g.getByRole("dialog");
+  await paddlePay.getByRole("radio", { name: "Pay by card (succeeds)" }).check();
+  if (await paddlePay.getByRole("radio", { name: /UPI/ }).count()) failures.push("UPI offered outside India");
+  await shot(g, `24a-test-payment-international${suffix}`, { fullPage: false });
+  await paddlePay.getByRole("button", { name: "Pay", exact: true }).click();
+  await g.getByText("You are on Creator. Thank you.").waitFor();
+  await abroad.close();
 
   const checker = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: scheme });
   const c = await checker.newPage();

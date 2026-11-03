@@ -14,6 +14,8 @@ const FORWARDED_HEADERS = [
   // Razorpay webhooks (US-034): the signature covers the raw body, so it is forwarded byte for byte
   "x-razorpay-signature",
   "x-razorpay-event-id",
+  // Paddle notifications (US-035): signed over the timestamp and the raw body
+  "paddle-signature",
 ];
 const RETURNED_HEADERS = [
   "content-type",
