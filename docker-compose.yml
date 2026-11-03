@@ -75,14 +75,20 @@ services:
 
   worker:
     # CPU stub runner by default: writes short tones instead of music, so no GPU is needed.
-    # For real songs, run ACE-Step on a GPU box and start with
+    # For real songs, run ACE-Step on a GPU box (or natively on a Mac, see the README) and start with
     #   BEATMIND_RUNNER=acestep ACESTEP_URL=http://<gpu-box>:8001 docker compose up
     build: ./workers
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DATABASE_URL: postgresql://beatmind:beatmind@postgres:5432/beatmind
       BEATMIND_RUNNER: ${BEATMIND_RUNNER:-stub}
       ACESTEP_URL: ${ACESTEP_URL:-}
       ACESTEP_API_KEY: ${ACESTEP_API_KEY:-}
+      # Seconds to wait for one request's takes, and before a running job counts as stuck.
+      # Raise both for a laptop or CPU, where two takes can take several minutes.
+      ACESTEP_TIMEOUT_SECONDS: ${ACESTEP_TIMEOUT_SECONDS:-600}
+      BEATMIND_LEASE_SECONDS: ${BEATMIND_LEASE_SECONDS:-600}
       S3_ENDPOINT: http://s3:8333
       S3_ACCESS_KEY: local
       S3_SECRET_KEY: local-secret
