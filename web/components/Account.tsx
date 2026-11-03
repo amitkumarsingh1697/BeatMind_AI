@@ -2,10 +2,11 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { problem } from "@/lib/format";
+import { appText, errorText } from "@/lib/i18n";
 import type { Locale } from "@/lib/messages";
-import { PLAN_NAMES, signOut, useMe, type Me } from "@/lib/session";
+import { signOut, useMe, type Me } from "@/lib/session";
 
-const TERMS_VERSION = "2026-11-beta";
+import { TERMS_VERSION } from "@/lib/terms";
 
 type Methods = { email: boolean; google: boolean; devCodes: boolean };
 
@@ -18,30 +19,40 @@ export default function RequireAccount({ locale, children }: { locale: Locale; c
   if (me === undefined) {
     return (
       <div className="cluster muted" aria-busy="true">
-        <span className="spinner" aria-hidden="true" /> Loading…
+        <span className="spinner" aria-hidden="true" /> {appText(locale).common.loading}
       </div>
     );
   }
   if (me === null) return <SignIn locale={locale} onSignedIn={setMe} />;
-  if (me.needsProfile) return <ProfileStep onDone={setMe} onBlocked={() => setMe(null)} />;
+  if (me.needsProfile) return <ProfileStep locale={locale} onDone={setMe} onBlocked={() => setMe(null)} />;
   return <>{children(me)}</>;
 }
 
 export function AccountBar({ me, locale }: { me: Me; locale: Locale }) {
+  const t = appText(locale);
   return (
-    <p className="cluster small muted" style={{ justifyContent: "flex-end" }}>
-      <span>
-        {me.email} · {PLAN_NAMES[me.plan]} plan
-      </span>
-      {me.admin && <a href={`/${locale}/admin/jobs`}>Admin</a>}
-      <button type="button" className="btn btn-ghost btn-sm" onClick={signOut}>
-        Sign out
-      </button>
-    </p>
+    <>
+      <p className="cluster small muted" style={{ justifyContent: "flex-end" }}>
+        <span>
+          {me.email} · {t.account.plan(t.plans[me.plan])}
+        </span>
+        {me.admin && <a href={`/${locale}/admin`}>{t.account.admin}</a>}
+        <button type="button" className="btn btn-ghost btn-sm" onClick={signOut}>
+          {t.account.signOut}
+        </button>
+      </p>
+      {me.suspended && (
+        <p className="notice notice-danger" role="status">
+          {t.account.suspended}
+        </p>
+      )}
+    </>
   );
 }
 
 function SignIn({ locale, onSignedIn }: { locale: Locale; onSignedIn: (m: Me) => void }) {
+  const t = appText(locale).account;
+  const common = appText(locale).common;
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
@@ -69,7 +80,7 @@ function SignIn({ locale, onSignedIn }: { locale: Locale; onSignedIn: (m: Me) =>
       body: JSON.stringify({ email, locale }),
     });
     setBusy(false);
-    if (!r.ok) return setError((await problem(r)).detail);
+    if (!r.ok) return setError(errorText(locale, await problem(r)));
     const body = await r.json();
     setDevCode(body.devCode ?? null);
     if (body.devCode) setCode(body.devCode);
@@ -86,23 +97,23 @@ function SignIn({ locale, onSignedIn }: { locale: Locale; onSignedIn: (m: Me) =>
       body: JSON.stringify({ email, code }),
     });
     setBusy(false);
-    if (!r.ok) return setError((await problem(r)).detail);
+    if (!r.ok) return setError(errorText(locale, await problem(r)));
     onSignedIn(await r.json());
   }
 
   return (
     <section className="card" aria-labelledby="signin-heading" style={{ maxInlineSize: 460, marginInline: "auto" }}>
-      <h2 id="signin-heading">Sign in to make songs</h2>
-      <p className="muted">No password. We email you a 6-digit code.</p>
+      <h2 id="signin-heading">{t.signInHeading}</h2>
+      <p className="muted">{t.signInIntro}</p>
       {failed && (
         <p className="notice notice-danger" role="alert">
-          Google sign-in did not finish. Try again or use an email code.
+          {t.googleFailed}
         </p>
       )}
       {step === "email" ? (
         <form onSubmit={sendCode}>
           <div className="field">
-            <label htmlFor="signin-email">Email</label>
+            <label htmlFor="signin-email">{t.email}</label>
             <input
               id="signin-email"
               className="input"
@@ -114,21 +125,19 @@ function SignIn({ locale, onSignedIn }: { locale: Locale; onSignedIn: (m: Me) =>
             />
           </div>
           <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
-            {busy ? "Sending…" : "Email me a sign-in code"}
+            {busy ? common.sending : t.sendCode}
           </button>
         </form>
       ) : (
         <form onSubmit={verify}>
-          <p className="muted">
-            We sent a code to <strong>{email}</strong>. It works for 10 minutes.
-          </p>
+          <p className="muted">{t.codeSent(email)}</p>
           {devCode && (
             <p className="notice small" role="status">
-              Local development: no email is sent, so the code is filled in for you.
+              {t.devCode}
             </p>
           )}
           <div className="field">
-            <label htmlFor="signin-code">6-digit code</label>
+            <label htmlFor="signin-code">{t.code}</label>
             <input
               id="signin-code"
               className="input"
@@ -141,20 +150,20 @@ function SignIn({ locale, onSignedIn }: { locale: Locale; onSignedIn: (m: Me) =>
             />
           </div>
           <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
-            {busy ? "Checking…" : "Sign in"}
+            {busy ? t.checking : t.signIn}
           </button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep("email")}>
-            Use a different email
+            {t.otherEmail}
           </button>
         </form>
       )}
       {methods?.google && (
         <>
           <p className="muted small" style={{ textAlign: "center", marginBlock: "var(--space-4)" }}>
-            or
+            {t.or}
           </p>
           <a className="btn btn-secondary btn-block" href={`/v1/auth/google/start?locale=${locale}`}>
-            Sign in with Google
+            {t.google}
           </a>
         </>
       )}
@@ -167,7 +176,8 @@ function SignIn({ locale, onSignedIn }: { locale: Locale; onSignedIn: (m: Me) =>
   );
 }
 
-function ProfileStep({ onDone, onBlocked }: { onDone: (m: Me) => void; onBlocked: () => void }) {
+function ProfileStep({ locale, onDone, onBlocked }: { locale: Locale; onDone: (m: Me) => void; onBlocked: () => void }) {
+  const t = appText(locale).account;
   const [birthDate, setBirthDate] = useState("");
   const [terms, setTerms] = useState(false);
   const [error, setError] = useState("");
@@ -181,17 +191,17 @@ function ProfileStep({ onDone, onBlocked }: { onDone: (m: Me) => void; onBlocked
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ birthDate, acceptTerms: terms, termsVersion: TERMS_VERSION }),
     });
-    if (r.status === 403) return setBlocked((await problem(r)).detail);
-    if (!r.ok) return setError((await problem(r)).detail);
+    if (r.status === 403) return setBlocked(errorText(locale, await problem(r)));
+    if (!r.ok) return setError(errorText(locale, await problem(r)));
     onDone(await r.json());
   }
 
   if (blocked) {
     return (
       <section className="card" style={{ maxInlineSize: 460, marginInline: "auto" }}>
-        <p role="alert">{blocked} We have deleted the account details you gave us.</p>
+        <p role="alert">{blocked} {t.deleted}</p>
         <button className="btn btn-secondary" type="button" onClick={onBlocked}>
-          OK
+          {appText(locale).common.ok}
         </button>
       </section>
     );
@@ -199,10 +209,10 @@ function ProfileStep({ onDone, onBlocked }: { onDone: (m: Me) => void; onBlocked
 
   return (
     <section className="card" aria-labelledby="profile-heading" style={{ maxInlineSize: 460, marginInline: "auto" }}>
-      <h2 id="profile-heading">One more step</h2>
+      <h2 id="profile-heading">{t.profileHeading}</h2>
       <form onSubmit={submit}>
         <div className="field">
-          <label htmlFor="birth-date">Date of birth</label>
+          <label htmlFor="birth-date">{t.birthDate}</label>
           <input
             id="birth-date"
             className="input"
@@ -213,15 +223,21 @@ function ProfileStep({ onDone, onBlocked }: { onDone: (m: Me) => void; onBlocked
             aria-describedby="birth-hint"
           />
           <p id="birth-hint" className="hint">
-            The beta is for people aged 18 and over. We keep only the month and year.
+            {t.birthHint}
           </p>
         </div>
         <label className="check">
           <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} required />
-          <span>I accept the beta terms and privacy policy.</span>
+          <span>
+            {t.acceptBefore}
+            <a href={`/${locale}/terms`} target="_blank" rel="noopener">
+              {t.termsLink}
+            </a>
+            {t.acceptAfter}
+          </span>
         </label>
         <button className="btn btn-primary" type="submit">
-          Continue
+          {t.continue}
         </button>
       </form>
       {error && (

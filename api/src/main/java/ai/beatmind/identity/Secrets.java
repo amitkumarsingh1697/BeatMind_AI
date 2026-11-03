@@ -76,6 +76,44 @@ class Secrets {
         }
     }
 
+    /** Encrypts a small secret (a TOTP key) with AES-GCM under a key derived from the pepper. */
+    String seal(byte[] plain) {
+        try {
+            byte[] iv = new byte[12];
+            RANDOM.nextBytes(iv);
+            javax.crypto.Cipher c = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            c.init(javax.crypto.Cipher.ENCRYPT_MODE, sealKey(), new javax.crypto.spec.GCMParameterSpec(128, iv));
+            byte[] sealed = c.doFinal(plain);
+            byte[] out = new byte[iv.length + sealed.length];
+            System.arraycopy(iv, 0, out, 0, iv.length);
+            System.arraycopy(sealed, 0, out, iv.length, sealed.length);
+            return Base64.getEncoder().encodeToString(out);
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    byte[] open(String sealed) {
+        try {
+            byte[] in = Base64.getDecoder().decode(sealed);
+            javax.crypto.Cipher c = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            c.init(javax.crypto.Cipher.DECRYPT_MODE, sealKey(), new javax.crypto.spec.GCMParameterSpec(128, in, 0, 12));
+            return c.doFinal(in, 12, in.length - 12);
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("cannot open sealed secret (was the pepper changed?)", e);
+        }
+    }
+
+    private SecretKeySpec sealKey() throws GeneralSecurityException {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(pepper, "HmacSHA256"));
+        return new SecretKeySpec(mac.doFinal("beatmind-mfa-seal-v1".getBytes(StandardCharsets.UTF_8)), "AES");
+    }
+
+    static SecureRandom random() {
+        return RANDOM;
+    }
+
     static boolean constantTimeEquals(String a, String b) {
         return MessageDigest.isEqual(a.getBytes(StandardCharsets.UTF_8), b.getBytes(StandardCharsets.UTF_8));
     }

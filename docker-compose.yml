@@ -52,6 +52,8 @@ services:
       # Signs 15-minute download links (US-026). Local only; staging and production get a secret.
       BEATMIND_DOWNLOAD_SECRET: local-only-download-secret
       BEATMIND_WEB_ORIGIN: http://localhost:3000
+      # Languages that passed listening gate G1 (REQ-F-07); the rest show as experimental.
+      BEATMIND_G1_PASSED: ${BEATMIND_G1_PASSED:-}
       # Google sign-in stays off unless you set these (see TODO.md, Sprint 1).
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
@@ -90,6 +92,13 @@ services:
       # Every take gets a watermark, AI-label tags and a C2PA manifest (REQ-F-30). Without
       # C2PA_SIGN_CERT and C2PA_SIGN_KEY the worker signs with a throwaway development certificate.
       BEATMIND_FINISHING: "on"
+      # AI lyric writer (US-018): "stub" templates locally, "llm" with LYRICS_LLM_URL and
+      # LYRICS_LLM_MODEL pointing at an OpenAI-compatible server (TODO.md, Sprint 3).
+      BEATMIND_LYRICS_WRITER: ${BEATMIND_LYRICS_WRITER:-stub}
+      LYRICS_LLM_URL: ${LYRICS_LLM_URL:-}
+      LYRICS_LLM_MODEL: ${LYRICS_LLM_MODEL:-}
+      # Similarity screen (US-029). The reference index is empty until a catalogue is loaded.
+      BEATMIND_SIMILARITY: ${BEATMIND_SIMILARITY:-on}
     depends_on:
       api:
         condition: service_started

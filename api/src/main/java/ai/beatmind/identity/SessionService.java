@@ -21,7 +21,8 @@ class SessionService {
     static final String COOKIE = "bm_session";
     private static final Duration TOUCH_EVERY = Duration.ofMinutes(5);
 
-    record Session(UUID userId, OffsetDateTime lastSeenAt) {}
+    /** A live session. {@code mfaAt} is when it passed the second factor (US-031), or null. */
+    record Session(UUID userId, OffsetDateTime lastSeenAt, OffsetDateTime mfaAt) {}
 
     private final JdbcClient jdbc;
     private final Secrets secrets;
@@ -47,22 +48,29 @@ class SessionService {
         return cookie(token, props.sessionTtl()).toString();
     }
 
-    /** The user id for a live session token, refreshing its idle timer now and then. */
-    Optional<UUID> resolve(String token) {
+    /** The live session for a token, refreshing its idle timer now and then. */
+    Optional<Session> resolve(String token) {
         String hash = secrets.sha256(token);
         Optional<Session> session = jdbc.sql("""
-                SELECT user_id, last_seen_at FROM user_session
+                SELECT user_id, last_seen_at, mfa_at FROM user_session
                  WHERE token_hash = :hash AND expires_at > now()
                    AND last_seen_at > now() - make_interval(secs => :idle)
                 """)
                 .param("hash", hash)
                 .param("idle", props.sessionIdle().toSeconds())
-                .query((rs, n) -> new Session(rs.getObject(1, UUID.class), rs.getObject(2, OffsetDateTime.class)))
+                .query((rs, n) -> new Session(rs.getObject(1, UUID.class), rs.getObject(2, OffsetDateTime.class),
+                        rs.getObject(3, OffsetDateTime.class)))
                 .optional();
         session.filter(s -> s.lastSeenAt().isBefore(OffsetDateTime.now().minus(TOUCH_EVERY)))
                 .ifPresent(s -> jdbc.sql("UPDATE user_session SET last_seen_at = now() WHERE token_hash = :hash")
                         .param("hash", hash).update());
-        return session.map(Session::userId);
+        return session;
+    }
+
+    /** Marks the session as having passed the second factor. */
+    void markMfa(String token) {
+        jdbc.sql("UPDATE user_session SET mfa_at = now() WHERE token_hash = :hash")
+                .param("hash", secrets.sha256(token)).update();
     }
 
     void end(String token) {

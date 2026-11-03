@@ -1,5 +1,6 @@
 package ai.beatmind.generation;
 
+import ai.beatmind.moderation.ModerationCases;
 import ai.beatmind.provenance.ProvenanceLedger;
 import ai.beatmind.provenance.ProvenanceLedger.Actor;
 import java.util.LinkedHashMap;
@@ -31,9 +32,13 @@ class JobFinalizer {
     private final Credits credits;
     private final ProvenanceLedger ledger;
     private final TransactionTemplate tx;
+    private final LyricDrafts drafts;
+    private final ModerationCases cases;
 
     JobFinalizer(JdbcClient jdbc, JsonMapper json, SongStore songs, Credits credits, ProvenanceLedger ledger,
-                 TransactionTemplate tx) {
+                 TransactionTemplate tx, LyricDrafts drafts, ModerationCases cases) {
+        this.drafts = drafts;
+        this.cases = cases;
         this.jdbc = jdbc;
         this.json = json;
         this.songs = songs;
@@ -77,7 +82,12 @@ class JobFinalizer {
             return 0;
         }
         Job job = jobs.getFirst();
-        songs.byJob(job.id()).ifPresent(song -> record(job.id(), job.userId(), job.status(), job.result(), song));
+        var song = songs.byJob(job.id());
+        if (song.isPresent()) {
+            record(job.id(), job.userId(), job.status(), job.result(), song.get());
+        } else {
+            drafts.finish(job.id(), job.userId(), job.status(), job.result());
+        }
         jdbc.sql("UPDATE generation_job SET finalized_at = now() WHERE id = :id").param("id", job.id()).update();
         return 1;
     }
@@ -94,9 +104,10 @@ class JobFinalizer {
                 boolean isWithheld = t.path("withheld").asBoolean(false);
                 Map<String, Object> assets = assets(t);
                 Long watermark = t.hasNonNull("watermarkId") ? t.get("watermarkId").asLong() : null;
+                JsonNode screen = t.path("similarity");
                 jdbc.sql("""
-                        INSERT INTO take (id, song_id, idx, status, watermark_id, assets)
-                        VALUES (:id, :song, :idx, :status, :wm, CAST(:assets AS jsonb))
+                        INSERT INTO take (id, song_id, idx, status, watermark_id, assets, screen)
+                        VALUES (:id, :song, :idx, :status, :wm, CAST(:assets AS jsonb), CAST(:screen AS jsonb))
                         ON CONFLICT (song_id, idx) DO NOTHING
                         """)
                         .param("id", UUID.randomUUID())
@@ -105,11 +116,26 @@ class JobFinalizer {
                         .param("status", isWithheld ? "withheld" : "ready")
                         .param("wm", watermark)
                         .param("assets", json.writeValueAsString(assets))
+                        .param("screen", screen.isObject() ? json.writeValueAsString(screen) : null)
                         .update();
                 if (isWithheld) {
                     withheld++;
-                    ledger.append(song.id(), "take_withheld", Actor.SYSTEM, Map.of(
-                            "takeIndex", index, "reason", t.path("withheldReason").asString("safety screen")));
+                    String reason = t.path("withheldReason").asString("safety screen");
+                    Map<String, Object> event = new LinkedHashMap<>();
+                    event.put("takeIndex", index);
+                    event.put("reason", reason);
+                    if (screen.isObject()) {
+                        // REQ-F-52: close matches are withheld and logged, for the admin queue too.
+                        Map<String, Object> detail = new LinkedHashMap<>();
+                        detail.put("score", screen.path("score").asDouble());
+                        detail.put("matchedHashes", screen.path("matched").asInt());
+                        detail.put("referenceId", screen.path("referenceId").asLong());
+                        detail.put("referenceTitle", screen.path("referenceTitle").asString(""));
+                        event.put("similarityScore", screen.path("score").asDouble());
+                        event.put("referenceId", screen.path("referenceId").asLong());
+                        cases.recordSimilarity(userId, song.id(), index, detail);
+                    }
+                    ledger.append(song.id(), "take_withheld", Actor.SYSTEM, event);
                 } else {
                     made++;
                     Map<String, Object> payload = new LinkedHashMap<>();
@@ -128,6 +154,10 @@ class JobFinalizer {
                     });
                     payload.put("fileSha256", hashes);
                     payload.put("c2pa", t.path("c2pa").asBoolean(false));
+                    if (screen.isObject()) {
+                        payload.put("similarityScreened", true);
+                        payload.put("similarityScore", screen.path("score").asDouble());
+                    }
                     ledger.append(song.id(), "take_generated", Actor.AI, payload);
                 }
             }

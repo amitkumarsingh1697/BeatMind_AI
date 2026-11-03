@@ -52,9 +52,11 @@ class SongRequests {
     private final ProvenanceLedger ledger;
     private final Entitlements entitlements;
     private final JsonMapper json;
+    private final LyricDrafts drafts;
 
     SongRequests(JobQueue queue, SongStore songs, Credits credits, ProvenanceLedger ledger, Entitlements entitlements,
-                 JsonMapper json) {
+                 JsonMapper json, LyricDrafts drafts) {
+        this.drafts = drafts;
         this.queue = queue;
         this.songs = songs;
         this.credits = credits;
@@ -125,7 +127,16 @@ class SongRequests {
     /** Checks caps and queues the song. Returns the new song's id and its job's id. */
     @Transactional
     Map.Entry<UUID, UUID> create(CurrentUser me, Request req, String ipHash) {
+        return create(me, req, ipHash, null);
+    }
+
+    /** As above; {@code lyricsDraftId} names the AI draft the lyrics came from (US-018). */
+    @Transactional
+    Map.Entry<UUID, UUID> create(CurrentUser me, Request req, String ipHash, UUID lyricsDraftId) {
         credits.lock(me.id());
+        if (songs.suspended(me.id())) {
+            throw new Refusal(HttpStatus.FORBIDDEN, "suspended", GenerationController.SUSPENDED);
+        }
         if (songs.active(me.id()) >= Entitlements.concurrency(me.plan())) {
             int n = Entitlements.concurrency(me.plan());
             throw new Refusal(HttpStatus.TOO_MANY_REQUESTS, "concurrency", n == 1
@@ -184,14 +195,40 @@ class SongRequests {
                 "settings", settings,
                 "planAtCreation", me.plan()));
         if (req.lyrics() != null) {
-            ledger.append(songId, "lyrics_written", Actor.HUMAN, Map.of(
-                    "lyricsSha256", sha256(req.lyrics()),
-                    "lyricsCharacters", TextRules.graphemes(req.lyrics()),
-                    "languageTag", tag));
+            recordLyrics(me, songId, req.lyrics(), tag, lyricsDraftId);
         }
         ledger.append(songId, "credits_debited", Actor.SYSTEM, Map.of(
                 "credits", Entitlements.CREDITS_PER_REQUEST, "jobId", jobId.toString()));
         return Map.entry(songId, jobId);
+    }
+
+    /**
+     * Who wrote the lyrics (REQ-F-31): the creator, the AI, or the AI then the creator. A draft
+     * counts only if it is the creator's own finished draft.
+     */
+    private void recordLyrics(CurrentUser me, UUID songId, String lyrics, String tag, UUID draftId) {
+        LyricDrafts.Draft draft = draftId == null ? null : drafts.find(draftId, me.id())
+                .filter(d -> "ready".equals(d.status()) && d.lyrics() != null).orElse(null);
+        if (draft == null) {
+            ledger.append(songId, "lyrics_written", Actor.HUMAN, Map.of(
+                    "lyricsSha256", sha256(lyrics),
+                    "lyricsCharacters", TextRules.graphemes(lyrics),
+                    "languageTag", tag));
+            return;
+        }
+        Map<String, Object> ai = new LinkedHashMap<>();
+        ai.put("draftId", draft.id().toString());
+        ai.put("model", draft.model() == null ? "unknown" : draft.model());
+        ai.put("lyricsSha256", sha256(draft.lyrics()));
+        ai.put("topicSha256", sha256(draft.topic()));
+        ai.put("languageTag", TextRules.languageTag(draft.language()));
+        ledger.append(songId, "lyrics_generated", Actor.AI, ai);
+        if (!TextRules.nfc(draft.lyrics().strip()).equals(lyrics)) {
+            ledger.append(songId, "lyrics_edited", Actor.HUMAN, Map.of(
+                    "lyricsSha256", sha256(lyrics),
+                    "lyricsCharacters", TextRules.graphemes(lyrics),
+                    "languageTag", tag));
+        }
     }
 
     private static Refusal bad(String field, String detail) {

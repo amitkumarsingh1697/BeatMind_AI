@@ -19,7 +19,7 @@ final class SongViews {
     record SongView(UUID id, String title, String titleLatin, String languageTag, String mode, String prompt,
                     String lyrics, String vocalType, boolean instrumental, int durationSeconds, String status,
                     String rightsStatus, String rights, boolean aiGenerated, String label, List<TakeView> takes,
-                    List<String> downloadFormats, OffsetDateTime createdAt) {}
+                    List<String> downloadFormats, String certificateId, OffsetDateTime createdAt) {}
 
     static final String AI_LABEL = "AI-generated";
 
@@ -56,6 +56,10 @@ final class SongViews {
     }
 
     static SongView of(SongStore.Song s, List<SongStore.Take> takes, String viewerPlan) {
+        return of(s, takes, viewerPlan, null);
+    }
+
+    static SongView of(SongStore.Song s, List<SongStore.Take> takes, String viewerPlan, String certificateId) {
         String status = s.status();
         List<TakeView> views = takes.stream()
                 .map(t -> new TakeView(t.index(), t.status(),
@@ -67,6 +71,7 @@ final class SongViews {
         }
         return new SongView(s.id(), s.title(), s.titleLatin(), s.languageTag(), s.mode(), s.prompt(), s.lyrics(),
                 s.vocalType(), s.instrumental(), s.durationSeconds(), status, s.rightsStatus(),
-                rights(s.rightsStatus()), true, AI_LABEL, views, Entitlements.formats(viewerPlan), s.createdAt());
+                rights(s.rightsStatus()), true, AI_LABEL, views, Entitlements.formats(viewerPlan), certificateId,
+                s.createdAt());
     }
 }

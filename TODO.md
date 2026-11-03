@@ -113,12 +113,38 @@ developer**.
 - [ ] **Five quick UX tests** (Founder): first-click on Create, Hindi copy, licence panel, price
       page and a screen-reader walkthrough (UX spec section 9), on the new design.
 
-## Sprint 3: safe and multilingual
+## Sprint 3: safe and multilingual (code runs locally; these steps make it real)
 
-- [ ] **US-040 G1 listening tests** (Founder): recruit at least 30 native listeners per language
-      for Hindi, Hinglish and English, run the tests on GPU-made songs, and record which languages
-      pass.
-- [ ] Founder: hire a native Hindi copywriter for the Hindi interface (US-010).
+- [ ] **US-040 G1 listening tests** (Founder, then any developer): follow
+      `docs/11-validation/g1-listening-test.md`. Recruit at least 30 native listeners per language
+      for Hindi, Hinglish and English, make the clips on the GPU, run `g1 plan` and `g1 analyse`, and
+      set `BEATMIND_G1_PASSED` for the languages that pass. Until then every language shows as
+      experimental.
+- [ ] **Native Hindi review** (Founder): a native Hindi copywriter reviews the app text in
+      `web/lib/i18n.ts`, the beta terms in `web/lib/terms.ts`, and the Hindi words in the moderation
+      lists (`api/src/main/resources/moderation/lexicon.tsv`). The lists also need a native speaker
+      who knows current slurs and slang, and a re-run of the red-team set afterwards (US-010, US-028).
+- [ ] **Counsel sign-off on the beta terms** (Founder): version `2026-11-beta`, English and Hindi
+      (`docs/14-legal/beta-terms.md`, point L-08), before the closed beta opens. If the wording
+      changes in a way that matters, bump `TERMS_VERSION` so everyone accepts again.
+- [ ] **Similarity reference catalogue, TD-03** (Founder decides, any developer loads): choose which
+      recordings to screen against (for example a licensed Bollywood fingerprint set, or a
+      commercial ACR service), then load them with `python -m beatmind_workers.reference add`. The
+      index is empty until then, so the screen passes every take. A melody or cover-song model is
+      a later step.
+- [ ] **Lyric model, TD-01** (Any developer, rented GPU): pick an open-weight lyric model after a
+      Hindi lyric test, serve it with an OpenAI-compatible server (for example vLLM), and set
+      `BEATMIND_LYRICS_WRITER=llm`, `LYRICS_LLM_URL`, `LYRICS_LLM_MODEL` (and `LYRICS_LLM_API_KEY`
+      if needed) on the worker. Until then lyrics come from fixed templates.
+- [ ] **Phone check before free licences, TM-12** (Founder picks a provider, any developer builds):
+      add a one-time SMS code before the first commercial licence, so one person cannot farm
+      licences with many emails.
+- [ ] **Admin accounts** (Founder): list the admin emails in `BEATMIND_ADMIN_EMAILS` for staging and
+      production; each admin sets up an authenticator app on first visit to `/en/admin` and stores
+      the recovery codes in the team password manager.
+- [ ] **Later improvements** (Any developer): a QR code on the admin second-factor screen, passkeys
+      for admins, a support role with read-only access, and certificates as signed PDF files (today
+      the certificate page prints to PDF).
 
 ## Sprint 4: beta hardening
 

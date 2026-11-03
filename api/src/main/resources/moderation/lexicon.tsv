@@ -1,0 +1,347 @@
+# BeatMind text moderation lexicon (US-028, REQ-F-50, REQ-F-51, REQ-SEC-04).
+#
+# Seed list written by the engineering team. Native Hindi moderators must review and extend it
+# before the beta (TODO.md). Every term is folded the same way as user text (TextFold): Unicode
+# NFKC case folding, zero-width and look-alike characters removed, Devanagari written in Latin the
+# Hinglish way, and spelling variants (aspirates, doubled letters, a final "a") folded. So one
+# entry such as "maar dalunga" also catches "MAAR DAALUNGA", "m@@r dalunga" and "मार डालूंगा"
+# written phonetically. Devanagari entries are still listed where the Hindi spelling folds
+# differently from the usual Hinglish one.
+#
+# Columns: kind <TAB> term
+#   artist       a real performer; naming one blocks the request (REQ-F-50)
+#   artist_cue   a name that is also an ordinary word; blocks only within 3 words of a style cue
+#   cue          words that ask for someone's voice or style
+#   clone        asks to copy a real voice
+#   slur         blocks on its own (REQ-F-51, hate)
+#   group        a protected group; blocks with "violence" or "dehumanise" on the same line
+#   violence     a call to violence
+#   dehumanise   calls people vermin or animals
+#   threat       a direct threat to someone (REQ-F-51, threats)
+#   sexual       sexual terms; block with "minor" anywhere in the same text (REQ-F-51)
+#   minor        refers to a child (ages under 18 are matched separately)
+
+artist	arijit singh
+artist	अरिजीत सिंह
+artist	shreya ghoshal
+artist	श्रेया घोषाल
+artist	lata mangeshkar
+artist	लता मंगेशकर
+artist	asha bhosle
+artist	आशा भोसले
+artist	kishore kumar
+artist	किशोर कुमार
+artist	mohammed rafi
+artist	mohammad rafi
+artist	मोहम्मद रफ़ी
+artist	sonu nigam
+artist	सोनू निगम
+artist	sunidhi chauhan
+artist	neha kakkar
+artist	नेहा कक्कड़
+artist	a r rahman
+artist	ar rahman
+artist	ए आर रहमान
+artist	atif aslam
+artist	jubin nautiyal
+artist	armaan malik
+artist	udit narayan
+artist	alka yagnik
+artist	kumar sanu
+artist	shankar mahadevan
+artist	vishal dadlani
+artist	honey singh
+artist	हनी सिंह
+artist	diljit dosanjh
+artist	दिलजीत दोसांझ
+artist	sidhu moose wala
+artist	sidhu moosewala
+artist	सिद्धू मूसेवाला
+artist	ap dhillon
+artist	nucleya
+artist	anirudh ravichander
+artist	sid sriram
+artist	jagjit singh
+artist	nusrat fateh ali khan
+artist	rahat fateh ali khan
+artist	mohit chauhan
+artist	mika singh
+artist	guru randhawa
+artist	darshan raval
+artist	shilpa rao
+artist	amit trivedi
+artist	ilaiyaraaja
+artist	s p balasubrahmanyam
+artist	k s chithra
+artist	taylor swift
+artist	ed sheeran
+artist	beyonce
+artist	billie eilish
+artist	the weeknd
+artist	ariana grande
+artist	justin bieber
+artist	michael jackson
+artist	eminem
+artist	rihanna
+artist	coldplay
+artist	imagine dragons
+artist	bad bunny
+artist	dua lipa
+artist	bruno mars
+artist	kanye west
+artist	travis scott
+artist	post malone
+artist	lady gaga
+artist	shakira
+artist	the beatles
+artist	elvis presley
+artist	freddie mercury
+artist	celine dion
+artist	whitney houston
+artist	frank sinatra
+artist_cue	badshah
+artist_cue	बादशाह
+artist_cue	papon
+artist_cue	drake
+artist_cue	adele
+artist_cue	bts
+artist_cue	madonna
+artist_cue	sia
+cue	style
+cue	voice
+cue	sounds like
+cue	sound like
+cue	sing like
+cue	sings like
+cue	rap like
+cue	raps like
+cue	jaisa gaana
+cue	jaisa gana
+cue	jaisa rap
+cue	jaisa song
+cue	jaisi awaaz
+cue	jaisi aawaz
+cue	जैसा गाना
+cue	जैसा रैप
+cue	जैसी आवाज़
+cue	awaaz
+cue	aawaz
+cue	awaz
+cue	andaaz
+cue	andaz
+cue	copy
+cue	cover
+cue	remake
+cue	आवाज़
+cue	आवाज
+cue	अंदाज़
+cue	स्टाइल
+clone	voice clone
+clone	clone voice
+clone	clone the voice
+clone	clone his voice
+clone	clone her voice
+clone	clone their voice
+clone	deepfake
+clone	deep fake
+clone	awaaz ki nakal
+clone	आवाज़ की नकल
+slur	katua
+slur	katwa
+slur	katwe
+slur	कटुआ
+slur	chinki
+slur	chinky
+slur	चिंकी
+slur	nigger
+slur	faggot
+slur	kike
+slur	chink
+slur	paki
+slur	tranny
+group	muslim
+group	muslims
+group	musalman
+group	mussalman
+group	musalmano
+group	मुसलमान
+group	मुसलमानों
+group	मुस्लिम
+group	hindu
+group	hindus
+group	हिंदू
+group	हिन्दू
+group	हिंदुओं
+group	hinduon
+group	hinduo
+group	sikh
+group	sikhs
+group	सिख
+group	christian
+group	christians
+group	isai
+group	ईसाई
+group	dalit
+group	dalits
+group	दलित
+group	jew
+group	jews
+group	yahudi
+group	women
+group	aurat
+group	auraten
+group	auraton
+group	औरत
+group	औरतों
+group	gay
+group	gays
+group	transgender
+group	kinnar
+group	किन्नर
+group	bihari
+group	biharis
+group	madrasi
+group	northeasterners
+group	immigrants
+group	refugees
+group	sharnarthi
+violence	kill all
+violence	kill every
+violence	kill the
+violence	should die
+violence	must die
+violence	should be killed
+violence	must be killed
+violence	kill them
+violence	murder
+violence	burn
+violence	slaughter
+violence	wipe out
+violence	exterminate
+violence	genocide
+violence	lynch
+violence	maar do
+violence	maaro
+violence	maar dalo
+violence	maar daalo
+violence	kaat do
+violence	kaato
+violence	jala do
+violence	jalao
+violence	khatam karo
+violence	mita do
+violence	bhagao
+violence	bhaga do
+violence	qatl
+violence	katl
+violence	katle aam
+violence	मार दो
+violence	मारो
+violence	मार डालो
+violence	काट दो
+violence	काटो
+violence	जला दो
+violence	खत्म करो
+violence	ख़त्म करो
+violence	मिटा दो
+violence	भगाओ
+violence	क़त्ल
+dehumanise	cockroaches
+dehumanise	vermin
+dehumanise	rats
+dehumanise	insects
+dehumanise	parasites
+dehumanise	termites
+dehumanise	snakes
+dehumanise	keede
+dehumanise	kide
+dehumanise	कीड़े
+dehumanise	deemak
+dehumanise	दीमक
+dehumanise	suar
+dehumanise	सूअर
+dehumanise	kutte
+dehumanise	कुत्ते
+dehumanise	saanp
+dehumanise	सांप
+threat	i will kill you
+threat	ill kill you
+threat	kill you
+threat	gonna kill you
+threat	shoot you
+threat	stab you
+threat	murder you
+threat	you will die
+threat	you are dead
+threat	youre dead
+threat	tujhe maar dunga
+threat	tujhe maar dalunga
+threat	maar dalunga
+threat	maar daalunga
+threat	maar dunga
+threat	maar denge
+threat	maar dalenge
+threat	jaan se maar
+threat	goli maar dunga
+threat	goli maar denge
+threat	kaat dunga
+threat	kaat dalunga
+threat	tera khoon
+threat	teri laash
+threat	tera katl
+threat	मार डालूंगा
+threat	मार डालूँगा
+threat	मार दूंगा
+threat	मार दूँगा
+threat	जान से मार
+threat	गोली मार दूंगा
+threat	काट डालूंगा
+threat	काट दूंगा
+threat	तेरी लाश
+threat	तेरा खून
+sexual	sex
+sexual	sexual
+sexual	sexy
+sexual	nude
+sexual	naked
+sexual	porn
+sexual	rape
+sexual	nangi
+sexual	nanga
+sexual	chudai
+sexual	chod
+sexual	sambhog
+sexual	balatkar
+sexual	नंगी
+sexual	नंगा
+sexual	चुदाई
+sexual	संभोग
+sexual	बलात्कार
+sexual	सेक्स
+minor	child
+minor	children
+minor	kid
+minor	kids
+minor	underage
+minor	under age
+minor	schoolgirl
+minor	school girl
+minor	schoolboy
+minor	school boy
+minor	little girl
+minor	little boy
+minor	young teen
+minor	preteen
+minor	toddler
+minor	bachcha
+minor	bachchi
+minor	bachche
+minor	bacchi
+minor	bachi
+minor	nabalig
+minor	naabalig
+minor	बच्चा
+minor	बच्ची
+minor	बच्चे
+minor	नाबालिग
+minor	स्कूली

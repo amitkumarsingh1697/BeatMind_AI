@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,6 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 class MeController {
 
     static final int MINIMUM_AGE = 18;
+
+    record Preferences(@NotBlank @jakarta.validation.constraints.Pattern(regexp = "en|hi") String locale) {}
 
     record Profile(@NotNull LocalDate birthDate, @AssertTrue boolean acceptTerms,
                    @NotBlank @Size(max = 40) String termsVersion) {}
@@ -44,8 +47,21 @@ class MeController {
     ResponseEntity<?> me() {
         return CurrentUser.get()
                 .flatMap(u -> users.find(u.id()))
-                .<ResponseEntity<?>>map(u -> ResponseEntity.ok(view(u, props)))
+                .<ResponseEntity<?>>map(u -> {
+                    Map<String, Object> body = view(u, props);
+                    // The admin console opens only after the second factor (US-031).
+                    body.put("adminVerified", CurrentUser.get().map(CurrentUser::admin).orElse(false));
+                    return ResponseEntity.ok(body);
+                })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+    }
+
+    /** US-010: remembers the interface language for this account. */
+    @PatchMapping("/v1/me")
+    ResponseEntity<?> preferences(@Valid @RequestBody Preferences req) {
+        CurrentUser me = CurrentUser.get().orElseThrow();
+        users.setLocale(me.id(), req.locale());
+        return me();
     }
 
     /**
@@ -82,6 +98,9 @@ class MeController {
         body.put("needsProfile", !user.profileComplete());
         body.put("admin", props.isAdmin(user.email()));
         body.put("plan", user.plan());
+        body.put("locale", user.locale());
+        body.put("suspended", user.suspended());
+        body.put("termsVersion", user.termsVersion());
         return body;
     }
 }

@@ -42,8 +42,10 @@ class GenerationStore {
                 .optional();
     }
 
+    /** Song and beat requests, newest first. Lyric-writer jobs are not songs (US-018). */
     List<Generation> recent(UUID ownerId, int limit) {
-        return jdbc.sql("SELECT " + COLUMNS + " WHERE j.user_id = :owner AND (s.id IS NULL OR s.deleted_at IS NULL) ORDER BY j.created_at DESC LIMIT :limit")
+        return jdbc.sql("SELECT " + COLUMNS + " WHERE j.user_id = :owner AND j.kind <> 'lyrics'"
+                        + " AND (s.id IS NULL OR s.deleted_at IS NULL) ORDER BY j.created_at DESC LIMIT :limit")
                 .param("owner", ownerId)
                 .param("limit", limit)
                 .query(this::map)

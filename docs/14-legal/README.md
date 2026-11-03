@@ -11,6 +11,7 @@ Version 0.1 (Batch 4), 2026-10-28.
 | [privacy-policy.md](privacy-policy.md) | How personal data is handled (DPDP Act 2023; GDPR-ready structure) |
 | [acceptable-use-policy.md](acceptable-use-policy.md) | What users may not create or do |
 | [copyright-and-takedown-policy.md](copyright-and-takedown-policy.md) | Notices, orders, counter-notices, appeals, grievance officer |
+| [beta-terms.md](beta-terms.md) | Short closed-beta terms, version 2026-11-beta, shown in the app at `/en/terms` and `/hi/terms` (Sprint 3) |
 
 ## Drafting principles (fair to both sides)
 
@@ -32,3 +33,4 @@ Version 0.1 (Batch 4), 2026-10-28.
 | L-05 | Consumer-law limits on liability caps and on the chargeback rule (REQ-F-57) |
 | L-06 | Grievance officer and intermediary duties (COMP-IN-01, COMP-IN-02) |
 | L-07 | Nominee right under DPDP and erasure versus provenance retention (DPIA section 6) |
+| L-08 | Beta terms 2026-11-beta (English and Hindi): sign off before the closed beta opens; confirm "these beta terms win if they differ" |

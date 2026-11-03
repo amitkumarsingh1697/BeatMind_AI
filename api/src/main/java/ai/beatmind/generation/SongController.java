@@ -1,6 +1,8 @@
 package ai.beatmind.generation;
 
 import ai.beatmind.identity.CurrentUser;
+import ai.beatmind.moderation.ModerationCases;
+import ai.beatmind.moderation.TextModeration;
 import ai.beatmind.provenance.ProvenanceLedger;
 import ai.beatmind.provenance.ProvenanceLedger.Actor;
 import jakarta.validation.Valid;
@@ -52,6 +54,8 @@ class SongController {
 
     record Rename(@NotNull @Size(max = 1000) String title) {}
 
+    record Appeal(@Size(max = 1000) String note) {}
+
     record DownloadRequest(@NotNull @Pattern(regexp = "mp3|wav") String format) {}
 
     record DownloadLink(String url, Instant expiresAt, String format, String quality, String fileName, String label,
@@ -65,9 +69,15 @@ class SongController {
     private final DownloadTokens tokens;
     private final Credits credits;
     private final GenerationStore generations;
+    private final TextModeration moderation;
+    private final ModerationCases cases;
+    private final Licences licences;
 
     SongController(SongStore songs, AudioStore audio, ProvenanceLedger ledger, DownloadTokens tokens, Credits credits,
-                   GenerationStore generations) {
+                   GenerationStore generations, TextModeration moderation, ModerationCases cases, Licences licences) {
+        this.licences = licences;
+        this.moderation = moderation;
+        this.cases = cases;
         this.generations = generations;
         this.songs = songs;
         this.audio = audio;
@@ -96,7 +106,8 @@ class SongController {
     SongViews.SongView get(@PathVariable UUID id) {
         CurrentUser me = CurrentUser.get().orElseThrow();
         SongStore.Song song = owned(id, me);
-        return SongViews.of(song, songs.takes(id), me.plan());
+        String certificate = licences.latestForSong(id).map(Licences.Certificate::id).orElse(null);
+        return SongViews.of(song, songs.takes(id), me.plan(), certificate);
     }
 
     @PatchMapping("/v1/songs/{id}")
@@ -111,6 +122,10 @@ class SongController {
         if (TextRules.graphemes(title) > SongRequests.MAX_TITLE_GRAPHEMES) {
             return GenerationController.problem(HttpStatus.BAD_REQUEST, "invalid_title",
                     "Keep the title to " + SongRequests.MAX_TITLE_GRAPHEMES + " characters.");
+        }
+        TextModeration.Verdict verdict = moderation.check("title", title);
+        if (verdict.blocked() && !cases.cleared(me.id(), title)) {
+            return GenerationController.blocked(verdict, cases.recordTextBlock(me.id(), "text_block", verdict, title));
         }
         songs.rename(id, me.id(), title);
         ledger.append(id, "renamed", Actor.HUMAN, Map.of("titleSha256", SongRequests.sha256(title)));
@@ -141,6 +156,22 @@ class SongController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         return stream(asset.key(), CacheControl.maxAge(Duration.ofHours(1)).cachePrivate(), null);
+    }
+
+    /** REQ-F-59: the owner asks a person to review a withheld take (72-hour target). */
+    @PostMapping("/v1/songs/{id}/takes/{index}/appeal")
+    ResponseEntity<?> appealTake(@PathVariable UUID id, @PathVariable int index, @Valid @RequestBody Appeal req) {
+        CurrentUser me = CurrentUser.get().orElseThrow();
+        owned(id, me);
+        songs.take(id, index).filter(t -> "withheld".equals(t.status()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        UUID caseId = cases.forTake(id, index).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (!cases.appeal(caseId, me.id(), req.note())) {
+            return GenerationController.problem(HttpStatus.CONFLICT, "already_appealed",
+                    "You have already asked for a review of this take.");
+        }
+        ledger.append(id, "appeal_requested", Actor.HUMAN, Map.of("takeIndex", index));
+        return ResponseEntity.accepted().body(Map.of("status", "appealed", "caseId", caseId));
     }
 
     /** Sprint 1 address of a take, kept for the smoke test and older pages. */

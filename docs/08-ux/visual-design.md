@@ -81,8 +81,24 @@ under `beatmind/sprint-02-screens/`.
 
 ## 7. Not done yet
 
-* Hindi interface copy (US-010, Sprint 3): app screens are English; the waitlist is in both.
+* Native review of the Hindi interface copy (US-010 built it in Sprint 3).
 * Waveform drawing in the player (the spec mentions it; the slider shows progress for now).
 * Cover art per song (the gradient cover stands in).
 * Research tests from the UX spec, section 9, and a screen-reader pass with NVDA, VoiceOver and
   TalkBack (TC-REQ-NFR-08-02).
+
+## Sprint 3 additions
+
+- **Language switch:** the last item in the header navigation, outlined, labelled in the other
+  language's own script (हिन्दी / English). It keeps the current page.
+- **Experimental badge:** accent badge next to the vocal language when it has not passed G1, with
+  one line of explanation; the option text also says "(Experimental)".
+- **Blocked request:** danger notice with a heading, the reason in plain words, and a secondary
+  "Ask a person to review" button that opens an optional note.
+- **Lyric writer:** an iris-tinted card (the AI colour) inside the lyrics step; the written lyrics
+  sit in a scrollable, focusable box with the AI label above them.
+- **Rights panel:** plain-language owner line, licence quota, a confirm dialog listing the four
+  conditions, and a read-only credit line with Copy. Always ends with "not a certificate of
+  copyright".
+- **Certificate page:** a single card, at most 760 px wide; header, footer and buttons are hidden
+  when printing, colours drop to black on white.

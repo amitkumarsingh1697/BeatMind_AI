@@ -90,6 +90,17 @@ beatmind:
     download-link-ttl: 15m
     # Key that signs download links. Set in staging and production (TODO.md).
     download-secret: ${BEATMIND_DOWNLOAD_SECRET:}
+    # US-018: lyric drafts per account per day. US-025: free commercial licences per month (A-005).
+    lyrics-per-day: ${BEATMIND_LYRICS_PER_DAY:30}
+    free-commercial-licences-per-month: 5
   turnstile:
     # Cloudflare Turnstile secret. Blank disables the bot check (local development only).
     secret: ${TURNSTILE_SECRET:}
+  languages:
+    # REQ-F-07: vocal languages that passed listening gate G1 (US-040), comma-separated, for example
+    # "hi,hinglish". Every other language is shown as experimental.
+    g1-passed: ${BEATMIND_G1_PASSED:}
+  retention:
+    # TDD 5.2: files of deleted songs are removed this long after deletion.
+    deleted-songs: 30d
+    purge-every: 1h

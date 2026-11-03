@@ -1,18 +1,7 @@
-import { notFound } from "next/navigation";
-import AppShell from "@/components/AppShell";
-import { isLocale } from "@/lib/messages";
-import AdminConsole from "./DeadJobs";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Admin · BeatMind AI" };
-
-// Admin (API-014, admin role only): failed jobs (US-013), daily cap and plans (US-030), ledger
-// check (US-019). The full console is US-031.
+// The Sprint 1 address of the admin console; the console now lives at /{locale}/admin.
 export default async function AdminJobsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  if (!isLocale(locale)) notFound();
-  return (
-    <AppShell locale={locale} wide>
-      <AdminConsole locale={locale} />
-    </AppShell>
-  );
+  redirect(`/${locale === "hi" ? "hi" : "en"}/admin`);
 }

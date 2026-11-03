@@ -76,6 +76,17 @@ abstract class SongApiSupport {
 
     /** What the Sprint 2 worker writes: labelled MP3 192, MP3 320 and WAV per take. */
     void workerFinishes(UUID jobId, boolean withholdSecond) {
+        workerFinishes(jobId, withholdSecond ? "\"withheld\":true," : "");
+    }
+
+    /** As above, with the similarity screen withholding the second take (US-029). */
+    void workerFinishesWithSimilarMatch(UUID jobId) {
+        workerFinishes(jobId, """
+                "withheld":true,"withheldReason":"similarity",
+                "similarity":{"checked":true,"score":0.62,"matched":140,"referenceId":7,"referenceTitle":"Known song"},""");
+    }
+
+    void workerFinishes(UUID jobId, String secondExtra) {
         String take = """
                 {"key":"takes/%1$s/take-%2$d.wav","format":"wav","runner":"stub","watermarkId":%3$d,"c2pa":true,%4$s
                  "assets":{"mp3_192":{"key":"takes/%1$s/take-%2$d-192.mp3","contentType":"audio/mpeg","sha256":"a%2$d","bytes":10},
@@ -83,7 +94,7 @@ abstract class SongApiSupport {
                            "wav":{"key":"takes/%1$s/take-%2$d.wav","contentType":"audio/wav","sha256":"c%2$d","bytes":10}}}
                 """;
         String result = "{\"takes\":[" + take.formatted(jobId, 1, 1001, "") + ","
-                + take.formatted(jobId, 2, 1002, withholdSecond ? "\"withheld\":true," : "") + "]}";
+                + take.formatted(jobId, 2, 1002, secondExtra) + "]}";
         jdbc.sql("UPDATE generation_job SET status = 'succeeded', finished_at = now(), result = CAST(:r AS jsonb) WHERE id = :id")
                 .param("r", result)
                 .param("id", jobId)
@@ -94,6 +105,22 @@ abstract class SongApiSupport {
     void workerFails(UUID jobId) {
         jdbc.sql("UPDATE generation_job SET status = 'dead', attempts = 3, finished_at = now(), error = 'boom' WHERE id = :id")
                 .param("id", jobId)
+                .update();
+        finalizer.runOnce();
+    }
+
+    /** The song's ledger event types in order, comma-separated. */
+    String events(UUID song) {
+        return jdbc.sql("SELECT string_agg(type, ',' ORDER BY seq) FROM provenance_event WHERE song_id = :song")
+                .param("song", song).query(String.class).single();
+    }
+
+    /** A fake lyric worker: finishes the lyrics job with the given text. */
+    void lyricWorkerWrites(UUID draftId, String lyrics) {
+        UUID job = jdbc.sql("SELECT job_id FROM lyric_draft WHERE id = :id").param("id", draftId).query(UUID.class).single();
+        jdbc.sql("UPDATE generation_job SET status = 'succeeded', finished_at = now(), result = CAST(:r AS jsonb) WHERE id = :id")
+                .param("r", json.writeValueAsString(java.util.Map.of("lyrics", lyrics, "model", "test-writer")))
+                .param("id", job)
                 .update();
         finalizer.runOnce();
     }
