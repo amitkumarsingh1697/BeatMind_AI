@@ -16,7 +16,8 @@ import tools.jackson.databind.json.JsonMapper;
 class GenerationStore {
 
     private static final String COLUMNS = """
-            j.id, j.kind, j.status, j.payload::text AS payload, j.created_at, j.finished_at,
+            j.id, j.kind, j.status, j.payload::text AS payload, j.created_at, j.finished_at, j.started_at,
+            j.priority, j.available_at,
             j.finalized_at IS NOT NULL AS finalized, s.id AS song_id, s.title
               FROM generation_job j LEFT JOIN song s ON s.job_id = j.id
             """;
@@ -25,6 +26,12 @@ class GenerationStore {
     private final JsonMapper json;
     private final SongStore songs;
     private final Credits credits;
+
+    /** Run time assumed before any job has finished (stub worker about 5 s, GPU about 40 s). */
+    static final int DEFAULT_RUN_SECONDS = 40;
+
+    /** What the queue looks like right now, for estimates (US-014). */
+    record QueueStats(double averageRunSeconds, int workers) {}
 
     GenerationStore(JdbcClient jdbc, JsonMapper json, SongStore songs, Credits credits) {
         this.jdbc = jdbc;
@@ -61,6 +68,52 @@ class GenerationStore {
                 .optional();
     }
 
+    /**
+     * Mean run time of the last 50 song and beat jobs finished in the past day, and the workers
+     * seen claiming jobs in the last 10 minutes (at least one).
+     */
+    QueueStats stats() {
+        Double avg = jdbc.sql("""
+                SELECT avg(extract(epoch FROM finished_at - started_at)) FROM (
+                    SELECT finished_at, started_at FROM generation_job
+                     WHERE status = 'succeeded' AND kind IN ('song', 'beat') AND started_at IS NOT NULL
+                       AND finished_at > now() - interval '1 day'
+                     ORDER BY finished_at DESC LIMIT 50) recent
+                """).query(Double.class).optional().orElse(null);
+        Integer workers = jdbc.sql("""
+                SELECT count(DISTINCT locked_by) FROM generation_job
+                 WHERE locked_by IS NOT NULL AND locked_at > now() - interval '10 minutes'
+                """).query(Integer.class).single();
+        return new QueueStats(avg == null ? DEFAULT_RUN_SECONDS : Math.max(1, avg), Math.max(1, workers));
+    }
+
+    /** Jobs that start before this one: higher priority, or same priority and earlier in line. */
+    int ahead(UUID id, int priority, OffsetDateTime availableAt, OffsetDateTime createdAt) {
+        return jdbc.sql("""
+                SELECT count(*) FROM generation_job
+                 WHERE status IN ('queued', 'failed') AND kind IN ('song', 'beat') AND id <> :id
+                   AND (priority > :priority
+                        OR (priority = :priority AND (available_at, created_at) < (:available, :created)))
+                """)
+                .param("id", id).param("priority", priority).param("available", availableAt).param("created", createdAt)
+                .query(Integer.class).single();
+    }
+
+    /**
+     * Expected seconds until a job's takes are ready. A waiting job needs every job ahead of it to
+     * clear the workers, then its own run; a running job needs what is left of a typical run.
+     */
+    static int estimate(QueueStats stats, int position, long runningForSeconds) {
+        double run = stats.averageRunSeconds();
+        if (position <= 0) {
+            return (int) Math.max(5, Math.round(run - runningForSeconds));
+        }
+        double rounds = Math.floor((position - 1) / (double) stats.workers());
+        // On average, the job ahead on a busy worker is half done.
+        double wait = rounds * run + run / 2 + run;
+        return (int) Math.round(wait);
+    }
+
     private Generation map(ResultSet rs, int n) throws SQLException {
         UUID id = rs.getObject("id", UUID.class);
         UUID songId = rs.getObject("song_id", UUID.class);
@@ -70,6 +123,22 @@ class GenerationStore {
             status = "running";
         }
         JsonNode payload = json.readTree(rs.getString("payload"));
+        Integer position = null;
+        Integer eta = null;
+        if ("queued".equals(status) || "running".equals(status)) {
+            QueueStats stats = stats();
+            OffsetDateTime started = rs.getObject("started_at", OffsetDateTime.class);
+            boolean running = "running".equals(rs.getString("status"));
+            if (running) {
+                position = 0;
+                long elapsed = started == null ? 0 : Math.max(0, java.time.Duration.between(started, OffsetDateTime.now()).toSeconds());
+                eta = estimate(stats, 0, elapsed);
+            } else if ("queued".equals(status) && !"succeeded".equals(rs.getString("status"))) {
+                position = 1 + ahead(id, rs.getInt("priority"), rs.getObject("available_at", OffsetDateTime.class),
+                        rs.getObject("created_at", OffsetDateTime.class));
+                eta = estimate(stats, position, 0);
+            }
+        }
         List<Generation.Take> takes = songId == null || !"succeeded".equals(status) ? List.of()
                 : songs.takes(songId).stream()
                         .map(t -> new Generation.Take(t.index(), t.status(),
@@ -91,6 +160,8 @@ class GenerationStore {
                 rs.getObject("finished_at", OffsetDateTime.class),
                 takes,
                 finalized ? credits.refunded(id) : 0,
-                "failed".equals(status) ? "We could not make this song. Your credits have been refunded." : null);
+                "failed".equals(status) ? "We could not make this song. Your credits have been refunded." : null,
+                position,
+                eta);
     }
 }

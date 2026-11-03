@@ -45,6 +45,10 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/v1/downloads/*").permitAll()
                         // Certificates are public by id (API-012); they show no personal data.
                         .requestMatchers(HttpMethod.GET, "/v1/certificates/*").permitAll()
+                        // Reports (API-013): rights holders and authorities need no account (US-032).
+                        .requestMatchers(HttpMethod.POST, "/v1/reports").permitAll()
+                        // Share links (US-024): the token is the permission; revocable.
+                        .requestMatchers(HttpMethod.GET, "/v1/shared/*", "/v1/shared/*/audio").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/health", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated());

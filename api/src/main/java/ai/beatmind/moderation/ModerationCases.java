@@ -102,6 +102,15 @@ public class ModerationCases {
                 .update() == 1;
     }
 
+    /**
+     * Account closed (US-011): the cases stay as safety records, without the account link or the
+     * appeal note the person wrote.
+     */
+    public int forget(UUID userId) {
+        return jdbc.sql("UPDATE moderation_case SET user_id = NULL, appeal_note = NULL WHERE user_id = :user")
+                .param("user", userId).update();
+    }
+
     public List<Case> mine(UUID userId, int limit) {
         return jdbc.sql(SELECT + " WHERE user_id = :user ORDER BY created_at DESC LIMIT :limit")
                 .param("user", userId).param("limit", limit).query(this::row).list();

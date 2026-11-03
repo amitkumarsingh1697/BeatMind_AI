@@ -1,10 +1,10 @@
-// Walks the app screens (Sprints 2 and 3, English and Hindi) in a real browser against a running local stack, runs axe-core on
+// Walks the app screens (Sprints 2 to 4, English and Hindi) in a real browser against a running local stack, runs axe-core on
 // each (TC-REQ-NFR-08-01: no serious or critical violations) and saves screenshots.
 //
 //   node e2e/ui-check.mjs [base-url] [screenshot-dir]
 //
-// Needs Playwright with Chromium installed (npx playwright install chromium). Not part of CI yet;
-// see docs/09-delivery/sprint-02-report.md.
+// Needs Playwright with Chromium installed (npx playwright install chromium). CI runs it against
+// the Docker Compose stack (US-043, .github/workflows/ci.yml, job "Accessibility").
 import { createRequire } from "node:module";
 import { createHmac } from "node:crypto";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -17,6 +17,8 @@ const BASE = process.argv[2] ?? "http://localhost:3000";
 const OUT = process.argv[3] ?? "e2e/screenshots";
 mkdirSync(OUT, { recursive: true });
 const failures = [];
+// Carried from the dark-scheme walk to the admin part: the song that gets reported and its owner.
+let reported = { email: "", songUrl: "", shareUrl: "" };
 
 /** RFC 6238 code for the admin second factor (SHA-1, 6 digits, 30 s). */
 function totp(base32) {
@@ -146,6 +148,65 @@ for (const scheme of ["dark", "light"]) {
   await page.getByRole("heading", { name: "Song licence and rights certificate" }).waitFor();
   await shot(page, `08c-certificate${suffix}`);
   await audit(page, `certificate (${scheme})`);
+  await page.goBack();
+
+  // Share a public link (US-024), open the public page signed out, and report it (US-032).
+  await page.getByRole("heading", { name: "Share", exact: true }).waitFor();
+  const songUrl = page.url();
+  await page.getByRole("radio", { name: /Public page/ }).check();
+  await page.getByRole("button", { name: /^Make a link/ }).click();
+  const shareUrl = await page.locator("#share-url").inputValue();
+  await page.getByText(/Link ending/).first().waitFor();
+  await shot(page, `08d-share${suffix}`);
+  await audit(page, `share panel (${scheme})`);
+  const visitor = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: scheme });
+  const v = await visitor.newPage();
+  await v.goto(shareUrl);
+  await v.getByText("Shared song").waitFor();
+  await shot(v, `08e-shared-page${suffix}`);
+  await audit(v, `shared song page (${scheme})`);
+  await v.getByRole("link", { name: "Report this song" }).click();
+  await v.getByRole("heading", { name: "Report a song" }).waitFor();
+  await v.getByLabel("Your name or organisation").fill(`Example Records ${scheme}`);
+  await v.getByLabel("Email for our reply").fill("legal@records.example");
+  await v.getByLabel("What is wrong, and what is the original work?").fill("The melody copies our 2019 release.");
+  await v.getByRole("checkbox").check();
+  await shot(v, `08f-report-form${suffix}`);
+  await audit(v, `report form (${scheme})`);
+  await v.getByRole("button", { name: "Send report" }).click();
+  await v.getByText(/received\. We will acknowledge it by/).waitFor();
+  await shot(v, `08g-report-sent${suffix}`);
+  await visitor.close();
+  if (scheme === "dark") reported = { email, songUrl, shareUrl };
+
+  // Beat mode (US-015): genre, tempo, key and instruments; the live region gives the queue position (US-014).
+  await page.goto(`${BASE}/en/create`);
+  await page.getByRole("radio", { name: "Make a beat" }).check();
+  await page.getByLabel("Genre").selectOption("bhangra");
+  await page.getByLabel("Tempo (BPM)").fill("128");
+  await page.getByRole("combobox", { name: "Key", exact: true }).selectOption("A");
+  await page.getByRole("group", { name: "Instruments to feature" }).getByLabel("Dhol", { exact: true }).check();
+  await page.getByRole("group", { name: "Instruments to feature" }).getByLabel("Tabla", { exact: true }).check();
+  await page.getByRole("group", { name: "Instruments to leave out" }).getByLabel("Guitar", { exact: true }).check();
+  await shot(page, `03c-create-beat${suffix}`);
+  await audit(page, `create beat (${scheme})`);
+  await page.getByRole("button", { name: /Make two takes/ }).click();
+  await page.locator("li", { hasText: "Bhangra beat, 128 BPM" }).getByText("Your takes are ready.").waitFor({ timeout: 30000 });
+  await page.getByRole("link", { name: "Bhangra beat, 128 BPM" }).first().click();
+  await page.getByText(/Measured tempo 12\d BPM/).waitFor();
+  await shot(page, `07a-beat-song${suffix}`);
+  await audit(page, `beat song page (${scheme})`);
+
+  // Your data (US-011): export link and the delete dialog (not confirmed here).
+  await page.goto(`${BASE}/en/settings`);
+  await page.getByRole("heading", { name: "Your data", level: 1 }).waitFor();
+  await shot(page, `09a-your-data${suffix}`);
+  await audit(page, `your data (${scheme})`);
+  await page.getByRole("button", { name: "Delete my account" }).click();
+  await page.getByRole("heading", { name: "Delete your account for good?" }).waitFor();
+  await shot(page, `09b-delete-dialog${suffix}`, { fullPage: false });
+  await audit(page, `delete dialog (${scheme})`);
+  await page.getByRole("button", { name: "Cancel" }).click();
 
   await page.goto(`${BASE}/en/terms`);
   await audit(page, `terms (${scheme})`);
@@ -196,6 +257,14 @@ for (const scheme of ["dark", "light"]) {
     const hiOverflow = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     if (hiOverflow) failures.push("terms (Hindi, phone): horizontal scroll at 390 px");
     if (!songUrl.includes("/en/")) failures.push("language switch did not start from an English page");
+    // The public page in Hindi on a phone.
+    await p.goto(reported.shareUrl.replace("/en/s/", "/hi/s/"));
+    await p.getByText("शेयर किया गया गाना").waitFor();
+    await shot(p, "18-phone-shared-hi");
+    await audit(p, "shared song page (Hindi, phone)");
+    if (await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) {
+      failures.push("shared song page (Hindi, phone): horizontal scroll at 390 px");
+    }
     await phone.close();
   }
 }
@@ -237,6 +306,36 @@ await a.getByRole("heading", { name: "Moderation queue" }).waitFor();
 await a.getByText(/Blocked request/).first().waitFor();
 await shot(a, "12-admin");
 await audit(a, "admin");
+
+// Takedown queue (US-032): remove the reported song, the owner appeals, an admin restores it.
+const card = a.locator("#takedowns li", { hasText: "Example Records dark" }).first();
+await card.waitFor();
+await shot(a, "12b-admin-takedowns");
+await card.getByRole("button", { name: "Acknowledge" }).click();
+await a.getByText(/acknowledged\./).waitFor();
+await card.getByLabel("Note (the owner sees it)").fill("The report matches a registered work.");
+await card.getByRole("button", { name: "Remove the song" }).click();
+await a.getByText(/song removed\./).waitFor();
+const owner = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: "dark" });
+const o = await owner.newPage();
+await o.goto(reported.songUrl);
+await o.getByLabel("Email").fill(reported.email);
+await o.getByRole("button", { name: "Email me a sign-in code" }).click();
+await o.getByRole("button", { name: "Sign in", exact: true }).click();
+await o.getByRole("heading", { name: "This song was removed after a report" }).waitFor();
+await o.getByLabel("Why should this song come back?").fill("I wrote and recorded the melody myself last month.");
+await shot(o, "17-removed-song");
+await audit(o, "removed song with appeal");
+await o.getByRole("button", { name: "Send appeal" }).click();
+await o.getByText(/Appeal sent\. A person will answer by/).waitFor();
+await a.getByLabel("Show", { exact: true }).first().selectOption("appealed");
+const appealed = a.locator("#takedowns li", { hasText: "Example Records dark" }).first();
+await appealed.getByRole("button", { name: "Restore the song" }).click();
+await a.getByText(/song restored\./).waitFor();
+await o.reload();
+await o.getByText("Your appeal succeeded. The song is back as it was.").waitFor();
+await shot(o, "17a-restored-song");
+await owner.close();
 await a.getByRole("button", { name: "Verify every chain" }).click();
 await a.getByText(/song chains verify/).waitFor();
 await browser.close();

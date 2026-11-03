@@ -7,8 +7,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
@@ -30,9 +35,41 @@ class SongRequests {
 
     private static final Pattern SECTION_TAG = Pattern.compile("^\\s*\\[[^\\]]*\\]\\s*$");
 
-    /** A checked request: text is NFC and within limits. */
+    static final int MIN_BPM = 60;
+    static final int MAX_BPM = 200;
+
+    /** Beat mode genres (REQ-F-04). Kept short so the model gets a clear style word. */
+    static final List<String> GENRES = List.of("lofi", "hip_hop", "trap", "boom_bap", "drill", "house", "techno", "edm",
+            "pop", "rnb", "afrobeats", "reggaeton", "bollywood", "bhangra", "indian_fusion", "ambient", "cinematic",
+            "jazz", "rock", "funk");
+
+    /** Instruments a creator can ask for or leave out. Includes Indian instruments (UX spec, beat mode). */
+    static final List<String> INSTRUMENTS = List.of("drums", "808", "bass", "piano", "keys", "guitar", "synth", "pads",
+            "strings", "brass", "flute", "tabla", "dhol", "sitar", "sarangi", "harmonium", "shehnai", "santoor",
+            "percussion");
+
+    /** Keys: a tonic and major or minor, or "any" to let the model choose. */
+    static final List<String> TONICS = List.of("C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B");
+
+    /** Beat mode settings as the creator chose them (US-015). */
+    record Beat(String genre, int bpm, String key, List<String> include, List<String> exclude) {
+        Map<String, Object> asMap() {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("genre", genre);
+            m.put("bpm", bpm);
+            m.put("key", key);
+            m.put("include", include);
+            m.put("exclude", exclude);
+            return m;
+        }
+    }
+
+    /** A checked request: text is NFC and within limits. {@code beat} is set in beat mode only. */
     record Request(String mode, String prompt, String lyrics, String title, String language, String vocalType,
-                   boolean instrumental, int durationSeconds) {}
+                   boolean instrumental, int durationSeconds, Beat beat) {}
+
+    /** The raw beat settings from the request body. */
+    record BeatInput(String genre, Integer bpm, String key, List<String> include, List<String> exclude) {}
 
     /** Why a request was refused. {@code code} lets the page show the right help. */
     static final class Refusal extends RuntimeException {
@@ -68,7 +105,15 @@ class SongRequests {
     /** Validates and normalises the raw request (REQ-F-02, REQ-F-08). */
     static Request check(String mode, String prompt, String lyrics, String title, String language, String vocalType,
                          Boolean instrumental, Integer durationSeconds) {
+        return check(mode, prompt, lyrics, title, language, vocalType, instrumental, durationSeconds, null);
+    }
+
+    static Request check(String mode, String prompt, String lyrics, String title, String language, String vocalType,
+                         Boolean instrumental, Integer durationSeconds, BeatInput beatInput) {
         String m = mode == null ? "vibe" : mode;
+        if ("beat".equals(m)) {
+            return checkBeat(prompt, title, language, durationSeconds, beatInput);
+        }
         String p = TextRules.nfc(prompt == null ? "" : prompt.strip());
         String l = lyrics == null ? null : TextRules.nfc(lyrics.strip());
         String t = title == null ? null : TextRules.nfc(title.strip());
@@ -103,7 +148,113 @@ class SongRequests {
             t = defaultTitle(m, p, l);
         }
         return new Request(m, p, l, t, language == null ? "en" : language,
-                vocalType == null || inst ? null : vocalType, inst, durationSeconds == null ? 60 : durationSeconds);
+                vocalType == null || inst ? null : vocalType, inst, durationSeconds == null ? 60 : durationSeconds, null);
+    }
+
+    /**
+     * REQ-F-04: beat mode takes a genre, a BPM from 60 to 200, a key and instruments to include or
+     * exclude, and always makes an instrumental. The description is optional extra colour.
+     */
+    static Request checkBeat(String prompt, String title, String language, Integer durationSeconds, BeatInput in) {
+        if (in == null) {
+            throw bad("genre", "Pick a genre for the beat.");
+        }
+        String genre = in.genre() == null ? "" : in.genre().strip().toLowerCase(Locale.ROOT);
+        if (!GENRES.contains(genre)) {
+            throw bad("genre", "Pick a genre for the beat.");
+        }
+        if (in.bpm() == null || in.bpm() < MIN_BPM || in.bpm() > MAX_BPM) {
+            throw bad("bpm", "Choose a tempo from " + MIN_BPM + " to " + MAX_BPM + " BPM.");
+        }
+        String key = normaliseKey(in.key());
+        if (key == null) {
+            throw bad("key", "Choose a key, such as A minor, or leave it on Any key.");
+        }
+        List<String> include = instruments(in.include(), "include");
+        List<String> exclude = instruments(in.exclude(), "exclude");
+        for (String i : include) {
+            if (exclude.contains(i)) {
+                throw bad("exclude", "You asked to include and leave out " + i.replace('_', ' ') + ". Pick one.");
+            }
+        }
+        String p = TextRules.nfc(prompt == null ? "" : prompt.strip());
+        if (TextRules.graphemes(p) > MAX_PROMPT_GRAPHEMES) {
+            throw bad("prompt", "Keep the description to " + MAX_PROMPT_GRAPHEMES + " characters.");
+        }
+        String t = title == null ? null : TextRules.nfc(title.strip());
+        if (t != null && t.isEmpty()) {
+            t = null;
+        }
+        if (t != null && TextRules.graphemes(t) > MAX_TITLE_GRAPHEMES) {
+            throw bad("title", "Keep the title to " + MAX_TITLE_GRAPHEMES + " characters.");
+        }
+        Beat beat = new Beat(genre, in.bpm(), key, include, exclude);
+        if (t == null) {
+            t = beatTitle(beat);
+        }
+        if (p.isEmpty()) {
+            p = beatPrompt(beat);
+        }
+        return new Request("beat", p, null, t, language == null ? "en" : language, null, true,
+                durationSeconds == null ? 60 : durationSeconds, beat);
+    }
+
+    /** "a minor", "Am", "A min" and "A minor" all become "A minor"; blank and "any" become "any". */
+    static String normaliseKey(String raw) {
+        if (raw == null || raw.isBlank() || "any".equalsIgnoreCase(raw.strip())) {
+            return "any";
+        }
+        java.util.regex.Matcher km = Pattern.compile("^([A-Ga-g])([#b♯♭]?)\\s*(major|maj|minor|min|m)?$")
+                .matcher(raw.strip());
+        if (!km.matches()) {
+            return null;
+        }
+        String tonic = km.group(1).toUpperCase(Locale.ROOT) + km.group(2).replace("♯", "#").replace("♭", "b");
+        tonic = switch (tonic) {
+            case "Db" -> "C#";
+            case "D#" -> "Eb";
+            case "Gb" -> "F#";
+            case "G#" -> "Ab";
+            case "A#" -> "Bb";
+            default -> tonic;
+        };
+        if (!TONICS.contains(tonic)) {
+            return null;
+        }
+        String q = km.group(3) == null ? "major" : km.group(3);
+        return tonic + ("major".equals(q) || "maj".equals(q) ? " major" : " minor");
+    }
+
+    private static List<String> instruments(List<String> raw, String field) {
+        if (raw == null) {
+            return List.of();
+        }
+        Set<String> out = new LinkedHashSet<>();
+        for (String r : raw) {
+            String i = r == null ? "" : r.strip().toLowerCase(Locale.ROOT).replace(' ', '_');
+            if (!INSTRUMENTS.contains(i)) {
+                throw bad(field, "We do not know the instrument \"" + r + "\" yet.");
+            }
+            out.add(i);
+        }
+        if (out.size() > 8) {
+            throw bad(field, "Pick up to 8 instruments.");
+        }
+        return new ArrayList<>(out);
+    }
+
+    static String beatTitle(Beat beat) {
+        String genre = beat.genre().replace('_', ' ');
+        return Character.toUpperCase(genre.charAt(0)) + genre.substring(1) + " beat, " + beat.bpm() + " BPM";
+    }
+
+    /** The style text the model gets when the creator gave no description. */
+    static String beatPrompt(Beat beat) {
+        StringBuilder sb = new StringBuilder("Instrumental ").append(beat.genre().replace('_', ' ')).append(" beat");
+        if (!beat.include().isEmpty()) {
+            sb.append(" with ").append(String.join(", ", beat.include()).replace('_', ' '));
+        }
+        return sb.toString();
     }
 
     /** First lyric line (skipping [Verse] tags), else the description, cut to 60 characters. */
@@ -175,10 +326,14 @@ class SongRequests {
         payload.put("durationSeconds", req.durationSeconds());
         payload.put("takes", Entitlements.TAKES_PER_REQUEST);
         payload.put("rights", Entitlements.paid(me.plan()) ? "user_owned" : "bm_owned");
-        UUID jobId = queue.enqueue(JobQueue.Kind.SONG, json.writeValueAsString(payload),
+        if (req.beat() != null) {
+            payload.put("beat", req.beat().asMap());
+        }
+        UUID jobId = queue.enqueue(req.beat() != null ? JobQueue.Kind.BEAT : JobQueue.Kind.SONG, json.writeValueAsString(payload),
                 "pro".equals(me.plan()) ? 1 : 0, me.id());
         songs.create(new SongStore.NewSong(songId, me.id(), jobId, req.mode(), req.title(), tag, req.prompt(),
-                req.lyrics(), req.vocalType(), req.instrumental(), req.durationSeconds(), me.plan(), ipHash));
+                req.lyrics(), req.vocalType(), req.instrumental(), req.durationSeconds(), me.plan(), ipHash,
+                req.beat() == null ? null : json.writeValueAsString(req.beat().asMap())));
         credits.debit(me.id(), jobId, songId, Entitlements.CREDITS_PER_REQUEST);
 
         Map<String, Object> settings = new LinkedHashMap<>();
@@ -186,6 +341,9 @@ class SongRequests {
         settings.put("instrumental", req.instrumental());
         if (req.vocalType() != null) {
             settings.put("vocalType", req.vocalType());
+        }
+        if (req.beat() != null) {
+            settings.put("beat", req.beat().asMap());
         }
         ledger.append(songId, "prompt_submitted", Actor.HUMAN, Map.of(
                 "mode", req.mode(),

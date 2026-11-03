@@ -21,12 +21,12 @@ class SongStore {
     /** A new song as the creator asked for it. Text is already NFC. */
     record NewSong(UUID id, UUID ownerId, UUID jobId, String mode, String title, String languageTag, String prompt,
                    String lyrics, String vocalType, boolean instrumental, int durationSeconds, String plan,
-                   String clientIpHash) {}
+                   String clientIpHash, String beatJson) {}
 
     record Song(UUID id, UUID ownerId, UUID jobId, String mode, String title, String titleLatin, String languageTag,
                 String prompt, String lyrics, String vocalType, boolean instrumental, int durationSeconds,
                 String planAtCreation, String rightsStatus, String jobStatus, boolean finalized,
-                OffsetDateTime createdAt) {
+                OffsetDateTime createdAt, String beatJson) {
 
         /** Public status: a finished job counts as succeeded only once its takes are recorded. */
         String status() {
@@ -41,14 +41,15 @@ class SongStore {
         }
     }
 
-    record Take(UUID id, int index, String status, Long watermarkId, Map<String, Asset> assets) {}
+    /** {@code tempoBpm} is the tempo the worker measured on a beat-mode take (US-015), else null. */
+    record Take(UUID id, int index, String status, Long watermarkId, Map<String, Asset> assets, Double tempoBpm) {}
 
     record Asset(String key, String contentType, String sha256, long bytes) {}
 
     private static final String SONG_COLUMNS = """
             s.id, s.owner_id, s.job_id, s.mode, s.title, s.title_latin, s.language_tag, s.prompt, s.lyrics,
             s.vocal_type, s.instrumental, s.duration_seconds, s.plan_at_creation, s.rights_status, s.created_at,
-            j.status AS job_status, (j.id IS NULL OR j.finalized_at IS NOT NULL) AS finalized
+            s.beat::text AS beat, j.status AS job_status, (j.id IS NULL OR j.finalized_at IS NOT NULL) AS finalized
             """;
 
     private final JdbcClient jdbc;
@@ -64,9 +65,9 @@ class SongStore {
         jdbc.sql("""
                 INSERT INTO song (id, owner_id, job_id, mode, title, title_latin, language_tag, prompt, lyrics,
                                   vocal_type, instrumental, duration_seconds, plan_at_creation, rights_status,
-                                  search_text, search_key, client_ip_hash)
+                                  search_text, search_key, client_ip_hash, beat)
                 VALUES (:id, :owner, :job, :mode, :title, :latin, :tag, :prompt, :lyrics, :vocal, :instrumental,
-                        :duration, :plan, :rights, :text, :key, :ip)
+                        :duration, :plan, :rights, :text, :key, :ip, CAST(:beat AS jsonb))
                 """)
                 .param("id", s.id())
                 .param("owner", s.ownerId())
@@ -85,6 +86,7 @@ class SongStore {
                 .param("text", TextRules.searchText(s.title(), s.prompt(), s.lyrics()))
                 .param("key", TextRules.searchKey(s.title() + " " + s.prompt() + " " + (s.lyrics() == null ? "" : s.lyrics())))
                 .param("ip", s.clientIpHash())
+                .param("beat", s.beatJson())
                 .update();
     }
 
@@ -95,6 +97,15 @@ class SongStore {
                 """)
                 .param("id", id)
                 .param("owner", ownerId)
+                .query(SongStore::mapSong)
+                .optional();
+    }
+
+    /** A song that is not deleted, whoever owns it (share links, takedowns). */
+    Optional<Song> byId(UUID id) {
+        return jdbc.sql("SELECT " + SONG_COLUMNS + " FROM song s LEFT JOIN generation_job j ON j.id = s.job_id"
+                        + " WHERE s.id = :id AND s.deleted_at IS NULL")
+                .param("id", id)
                 .query(SongStore::mapSong)
                 .optional();
     }
@@ -165,7 +176,7 @@ class SongStore {
     }
 
     List<Take> takes(UUID songId) {
-        return jdbc.sql("SELECT id, idx, status, watermark_id, assets::text AS assets FROM take WHERE song_id = :song ORDER BY idx")
+        return jdbc.sql("SELECT id, idx, status, watermark_id, assets::text AS assets, analysis::text AS analysis FROM take WHERE song_id = :song ORDER BY idx")
                 .param("song", songId)
                 .query(this::mapTake)
                 .list();
@@ -176,7 +187,7 @@ class SongStore {
         if (songIds.isEmpty()) {
             return out;
         }
-        jdbc.sql("SELECT song_id, id, idx, status, watermark_id, assets::text AS assets FROM take WHERE song_id IN (:songs) ORDER BY idx")
+        jdbc.sql("SELECT song_id, id, idx, status, watermark_id, assets::text AS assets, analysis::text AS analysis FROM take WHERE song_id IN (:songs) ORDER BY idx")
                 .param("songs", songIds)
                 .query((rs, n) -> {
                     out.computeIfAbsent(rs.getObject("song_id", UUID.class), k -> new ArrayList<>()).add(mapTake(rs, n));
@@ -249,7 +260,8 @@ class SongStore {
                 rs.getString("rights_status"),
                 rs.getString("job_status"),
                 rs.getBoolean("finalized"),
-                rs.getObject("created_at", OffsetDateTime.class));
+                rs.getObject("created_at", OffsetDateTime.class),
+                rs.getString("beat"));
     }
 
     private Take mapTake(ResultSet rs, int n) throws SQLException {
@@ -261,7 +273,13 @@ class SongStore {
                     a.path("sha256").asString(null), a.path("bytes").asLong(-1)));
         }
         long wm = rs.getLong("watermark_id");
-        return new Take(rs.getObject("id", UUID.class), rs.getInt("idx"), rs.getString("status"),
-                rs.wasNull() ? null : wm, assets);
+        Long watermark = rs.wasNull() ? null : wm;
+        String analysis = rs.getString("analysis");
+        Double tempo = null;
+        if (analysis != null) {
+            JsonNode measured = json.readTree(analysis).path("tempo").path("measuredBpm");
+            tempo = measured.isNumber() ? measured.asDouble() : null;
+        }
+        return new Take(rs.getObject("id", UUID.class), rs.getInt("idx"), rs.getString("status"), watermark, assets, tempo);
     }
 }

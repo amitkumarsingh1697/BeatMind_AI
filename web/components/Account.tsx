@@ -36,6 +36,9 @@ export function AccountBar({ me, locale }: { me: Me; locale: Locale }) {
         <span>
           {me.email} · {t.account.plan(t.plans[me.plan])}
         </span>
+        <a className="btn btn-ghost btn-sm" href={`/${locale}/settings`}>
+          {t.settings.link}
+        </a>
         {me.admin && <a href={`/${locale}/admin`}>{t.account.admin}</a>}
         <button type="button" className="btn btn-ghost btn-sm" onClick={signOut}>
           {t.account.signOut}

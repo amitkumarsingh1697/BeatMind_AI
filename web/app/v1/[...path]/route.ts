@@ -31,7 +31,8 @@ async function forward(request: Request, path: string[]): Promise<Response> {
   const upstream = await fetch(`${origin}/v1/${joined}${search}`, {
     method: request.method,
     headers,
-    body: request.method === "GET" || request.method === "DELETE" ? undefined : await request.text(),
+    // DELETE /v1/me carries a confirmation body (US-011); other DELETEs send none.
+    body: request.method === "GET" ? undefined : (await request.text()) || undefined,
     cache: "no-store",
     redirect: "manual",
     signal: request.signal,

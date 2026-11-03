@@ -9,6 +9,10 @@ import java.util.UUID;
  * ones: a job waiting for a retry is still {@code queued}, and a dead-lettered job is
  * {@code failed}. A finished job reports {@code succeeded} or {@code failed} only once the API has
  * recorded its takes, ledger events and any refund.
+ *
+ * <p>US-014, UX-A11Y-15: while a job waits, {@code queuePosition} is 1 for the next job to start;
+ * while it runs it is 0. {@code estimatedSeconds} is the expected wait until the takes are ready,
+ * from the run time of recent jobs and the number of active workers. Both are null once finished.
  */
 record Generation(
         UUID id,
@@ -22,7 +26,9 @@ record Generation(
         OffsetDateTime finishedAt,
         List<Take> takes,
         int refundedCredits,
-        String error) {
+        String error,
+        Integer queuePosition,
+        Integer estimatedSeconds) {
 
     /** A take the user can play. {@code status} is ready or withheld. */
     record Take(int index, String status, String audioUrl, String format) {}

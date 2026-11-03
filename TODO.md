@@ -146,11 +146,33 @@ developer**.
       for admins, a support role with read-only access, and certificates as signed PDF files (today
       the certificate page prints to PDF).
 
-## Sprint 4: beta hardening
+## Sprint 4: beta hardening (code runs locally; these steps make it real)
 
-- [ ] **US-042** (Any developer): run the load test and security scan against staging once it is
-      live.
-- [ ] **US-041** (Founder): record the investor demo.
+- [ ] **US-042 load test** (Any developer, once staging is live): make the test accounts, raise the
+      per-network limit for the test window and run `scripts/load/k6-beta.js` at twice the beta
+      peak with the real GPU workers, as in `scripts/load/README.md`. Record the result and set
+      TC-REQ-NFR-01-01 in the RTM. Re-run when the first beta week shows the real peak.
+- [ ] **US-042 security baseline** (Any developer): run the **Security baseline** workflow against
+      staging from the Actions tab, triage every warning (fix it, or mark it `IGNORE` in
+      `.zap/rules.tsv` with a reason) and log each one in `docs/registers/review-findings.csv`.
+- [ ] **US-043 screen-reader pass** (Any developer, ideally with a screen-reader user): run the 12
+      flows in `docs/07-quality/screen-reader-pass.md` with NVDA and TalkBack on staging and record
+      the results there.
+- [ ] **US-041 investor demo** (Founder): fill in the opening line, then record the five-minute demo
+      in `docs/15-investor/investor-demo.md` on staging with the real model, and link it from the
+      diligence pack.
+- [ ] **Counsel review** (Founder): the report form, the takedown clocks and removal text
+      (`report`, `takedown` and `rights.disabled` in `web/lib/i18n.ts`), and the data export and
+      account deletion text (`settings`). Check the 3-hour and 15-day clocks against the current IT
+      Rules, and name the grievance officer.
+- [ ] **Takedown emails** (Any developer, after the email provider is chosen): send the reporter an
+      acknowledgement with the reference, tell the owner when a song is removed or restored, and
+      email the grievance officer when a clock is close to running out. Until then the overdue
+      alert (`beatmind.takedowns.overdue` above 0) must page someone.
+- [ ] **Native Hindi review** (Founder): the Sprint 4 text in `web/lib/i18n.ts` (beat mode, share,
+      report, takedown, settings and the shared page).
+- [ ] **ACE-Step beat settings** (Any developer, rented GPU): check that `bpm` and `key_scale` reach
+      the model and that measured tempos land within tolerance on real takes; add a key check.
 
 ## Sprint 5 and 6: payments
 

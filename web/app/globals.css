@@ -17,7 +17,7 @@
   --iris-300: #b4a8ff;
   --iris-600: #5b47d6;
   --leaf-400: #3ddc97;
-  --leaf-700: #0b7a4b;
+  --leaf-700: #0a6b42;
   --chilli-400: #ff7a7a;
   --chilli-700: #b42318;
 
@@ -100,7 +100,7 @@
     --ai: var(--iris-600);
     --ai-soft: rgb(91 71 214 / 0.1);
     --success: var(--leaf-700);
-    --success-soft: rgb(11 122 75 / 0.1);
+    --success-soft: rgb(10 107 66 / 0.1);
     --danger: var(--chilli-700);
     --danger-soft: rgb(180 35 24 / 0.08);
     --focus: #6d28d9;
@@ -397,6 +397,32 @@ form { display: grid; gap: var(--space-4); }
 }
 .chip:hover { border-color: var(--accent); background: var(--accent-soft); }
 
+/* Fieldsets used as plain field groups (beat mode, report form). */
+fieldset.field { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
+fieldset.field > legend { font-weight: 600; padding: 0; margin-block-end: var(--space-1); }
+.key-field .cluster { flex-wrap: nowrap; }
+.key-field .select { inline-size: auto; flex: 1; }
+
+/* Checkbox chips: real checkboxes, styled as toggles (beat mode instruments). */
+.check-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.check-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 40px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  font-size: var(--step--1);
+  font-weight: 600;
+  cursor: pointer;
+}
+.check-chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.check-chip:has(input:checked) { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
+.check-chip:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+.check-chip:has(input:disabled) { opacity: 0.55; cursor: not-allowed; }
+.check-chip:has(input:checked)::before { content: "✓"; margin-inline-end: var(--space-1); }
+
 /* ---------- Badges, notices, meters ---------- */
 
 .badge {
@@ -657,3 +683,8 @@ table.data th { color: var(--text-muted); font-weight: 600; }
   .certificate { border: 1px solid #000; box-shadow: none; background: #fff; color: #000; }
   .certificate .badge, .certificate .notice { color: #000; background: none; border-color: #000; }
 }
+
+/* Share links (US-024) */
+.share-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
+.share-list li { border-block-start: 1px solid var(--border); padding-block-start: var(--space-2); }
+.card.overdue { border-color: var(--danger); border-width: 2px; }

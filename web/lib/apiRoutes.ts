@@ -59,6 +59,19 @@ const ROUTES: [string, RegExp][] = [
   ["GET", /^admin\/moderation$/],
   ["POST", new RegExp(`^admin/moderation/${UUID}/decision$`)],
   ["GET", new RegExp(`^admin/songs/${UUID}/takes/[1-9][0-9]?/audio$`)],
+  // Sprint 4: reports and takedowns (US-032), export and deletion (US-011), sharing (US-024)
+  ["POST", /^reports$/],
+  ["POST", new RegExp(`^songs/${UUID}/takedown/appeal$`)],
+  ["GET", /^admin\/takedowns$/],
+  ["GET", /^admin\/takedowns\/overdue$/],
+  ["POST", new RegExp(`^admin/takedowns/${UUID}/(acknowledge|decision|appeal-decision)$`)],
+  ["GET", /^me\/export$/],
+  ["DELETE", /^me$/],
+  ["GET", new RegExp(`^songs/${UUID}/shares$`)],
+  ["POST", new RegExp(`^songs/${UUID}/shares$`)],
+  ["DELETE", new RegExp(`^songs/${UUID}/shares/${UUID}$`)],
+  ["GET", /^shared\/[A-Za-z0-9_-]{20,64}$/],
+  ["GET", /^shared\/[A-Za-z0-9_-]{20,64}\/audio$/],
 ];
 
 export function isAllowed(method: string, path: string): boolean {
