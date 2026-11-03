@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import RequireAccount, { AccountBar } from "@/components/Account";
 import AiLabel from "@/components/AiLabel";
 import Blocked from "@/components/Blocked";
-import { MusicIcon, PenIcon, SparkleIcon } from "@/components/Icons";
+import { MusicIcon, PenIcon, SparkleIcon, WaveIcon } from "@/components/Icons";
 import Player from "@/components/Player";
-import { count, languageTag, problem, type Problem } from "@/lib/format";
+import { count, languageTag, problem, spokenTime, type Problem } from "@/lib/format";
 import { appText, errorText, type AppText } from "@/lib/i18n";
 import { countGraphemes } from "@/lib/graphemes";
 import type { Locale } from "@/lib/messages";
@@ -18,7 +18,7 @@ const MAX_LYRICS = 3000;
 const MAX_TITLE = 100;
 const SETTINGS_KEY = "bm_create_settings";
 
-type Mode = "vibe" | "lyrics";
+type Mode = "vibe" | "lyrics" | "beat";
 type Take = { index: number; status: string; audioUrl: string | null; format: string | null };
 type Generation = {
   id: string;
@@ -29,16 +29,48 @@ type Generation = {
   takes: Take[];
   refundedCredits: number;
   error: string | null;
+  queuePosition: number | null;
+  estimatedSeconds: number | null;
 };
 type Allowance = { plan: string; window: "day" | "month"; limit: number; used: number; remaining: number; creditsPerRequest: number; resetsAt: string };
-type Settings = { mode: Mode; language: string; duration: number; vocalType: string; instrumental: boolean };
+type Settings = {
+  mode: Mode;
+  language: string;
+  duration: number;
+  vocalType: string;
+  instrumental: boolean;
+  genre: string;
+  bpm: number;
+  tonic: string;
+  quality: "major" | "minor";
+  include: string[];
+  exclude: string[];
+};
 type Language = { code: string; languageTag: string; experimental: boolean };
 type Draft = { id: string; status: "writing" | "ready" | "blocked" | "failed"; lyrics: string | null; languageTag: string; message: string | null };
 
 const LANGUAGE_CODES = ["hi", "hinglish", "en"];
+// Beat mode choices (US-015); the API checks the same lists (SongRequests).
+const GENRES = ["lofi", "hip_hop", "trap", "boom_bap", "drill", "house", "techno", "edm", "pop", "rnb", "afrobeats", "reggaeton", "bollywood", "bhangra", "indian_fusion", "ambient", "cinematic", "jazz", "rock", "funk"];
+const INSTRUMENTS = ["drums", "808", "bass", "piano", "keys", "guitar", "synth", "pads", "strings", "brass", "flute", "tabla", "dhol", "sitar", "sarangi", "harmonium", "shehnai", "santoor", "percussion"];
+const TONICS = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+const MIN_BPM = 60;
+const MAX_BPM = 200;
 
 function loadSettings(locale: Locale): Settings {
-  const fallback: Settings = { mode: "vibe", language: locale === "hi" ? "hi" : "en", duration: 60, vocalType: "any", instrumental: false };
+  const fallback: Settings = {
+    mode: "vibe",
+    language: locale === "hi" ? "hi" : "en",
+    duration: 60,
+    vocalType: "any",
+    instrumental: false,
+    genre: "lofi",
+    bpm: 90,
+    tonic: "any",
+    quality: "minor",
+    include: [],
+    exclude: [],
+  };
   try {
     return { ...fallback, ...JSON.parse(window.localStorage.getItem(SETTINGS_KEY) ?? "{}") };
   } catch {
@@ -128,8 +160,11 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
     return () => open.forEach((s) => s.close());
   }, [follow, loadAllowance]);
 
+  const bpmOk = Number.isInteger(settings.bpm) && settings.bpm >= MIN_BPM && settings.bpm <= MAX_BPM;
   const overLimit =
-    promptCount > MAX_PROMPT || titleCount > MAX_TITLE || (mode === "lyrics" ? lyricsCount > MAX_LYRICS || lyricsCount === 0 : promptCount === 0);
+    promptCount > MAX_PROMPT ||
+    titleCount > MAX_TITLE ||
+    (mode === "lyrics" ? lyricsCount > MAX_LYRICS || lyricsCount === 0 : mode === "beat" ? !bpmOk : promptCount === 0);
   const noCredits = allowance !== null && allowance.remaining < allowance.creditsPerRequest;
 
   async function create(e: FormEvent) {
@@ -138,7 +173,7 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
     setBlocked(null);
     setBusy(true);
     const body: Record<string, unknown> = {
-      kind: "song",
+      kind: mode === "beat" ? "beat" : "song",
       mode,
       prompt,
       language: settings.language,
@@ -149,10 +184,17 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
       body.lyrics = lyrics;
       body.title = title || undefined;
       body.lyricsDraftId = draftId ?? undefined;
+    } else if (mode === "beat") {
+      body.title = title || undefined;
+      body.genre = settings.genre;
+      body.bpm = settings.bpm;
+      body.key = settings.tonic === "any" ? "any" : `${settings.tonic} ${settings.quality}`;
+      body.includeInstruments = settings.include;
+      body.excludeInstruments = settings.exclude;
     } else {
       body.instrumental = settings.instrumental;
     }
-    if (!(mode === "vibe" && settings.instrumental) && settings.vocalType !== "any") body.vocalType = settings.vocalType;
+    if (mode !== "beat" && !(mode === "vibe" && settings.instrumental) && settings.vocalType !== "any") body.vocalType = settings.vocalType;
     const r = await fetch("/v1/generations", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -217,9 +259,27 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
                 <PenIcon size={18} /> {c.lyrics}
               </span>
             </label>
+            <label>
+              <input type="radio" name="mode" value="beat" checked={mode === "beat"} onChange={() => update({ mode: "beat" })} />
+              <span className="cluster">
+                <WaveIcon size={18} /> {c.beat}
+              </span>
+            </label>
           </fieldset>
 
-          {mode === "vibe" ? (
+          {mode === "beat" ? (
+            <BeatFields
+              t={t}
+              settings={settings}
+              update={update}
+              prompt={prompt}
+              setPrompt={setPrompt}
+              promptCount={promptCount}
+              title={title}
+              setTitle={setTitle}
+              fieldError={fieldError}
+            />
+          ) : mode === "vibe" ? (
             <div className="field">
               <label htmlFor="prompt">{c.vibeLabel}</label>
               <textarea
@@ -322,6 +382,7 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
           )}
 
           <div className="grid-2">
+            {mode !== "beat" && (
             <div className="field">
               <label htmlFor="language">{c.language}</label>
               <select
@@ -344,6 +405,7 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
                 </p>
               )}
             </div>
+            )}
             <div className="field">
               <label htmlFor="length">{c.length}</label>
               <select id="length" className="select" value={settings.duration} onChange={(e) => update({ duration: Number(e.target.value) })}>
@@ -354,6 +416,7 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
                 ))}
               </select>
             </div>
+            {mode !== "beat" && (
             <div className="field">
               <label htmlFor="voice">{c.voice}</label>
               <select
@@ -370,6 +433,7 @@ function Maker({ me, locale }: { me: Me; locale: Locale }) {
                 ))}
               </select>
             </div>
+            )}
             {mode === "vibe" && (
               <label className="check" style={{ alignSelf: "end", minBlockSize: "var(--tap)" }}>
                 <input type="checkbox" checked={settings.instrumental} onChange={(e) => update({ instrumental: e.target.checked })} />
@@ -474,6 +538,11 @@ function RecentSongs({ songs, locale }: { songs: Generation[]; locale: Locale })
               <p className="cluster small muted" role="status" aria-live="polite" style={{ margin: 0 }}>
                 {(g.status === "queued" || g.status === "running") && <span className="spinner" aria-hidden="true" />}
                 {c.status[g.status]}
+                {g.status === "queued" && g.queuePosition != null && ` ${c.queuePosition(g.queuePosition)}`}
+                {g.status === "running" && g.queuePosition === 0 && ` ${c.running}`}
+                {(g.status === "queued" || g.status === "running") &&
+                  g.estimatedSeconds != null &&
+                  ` ${c.estimate(spokenTime(Math.max(5, Math.round(g.estimatedSeconds / 5) * 5), t.time))}`}
                 {g.status === "failed" && g.refundedCredits > 0 && c.refunded(g.refundedCredits)}
                 {g.status === "succeeded" && g.refundedCredits > 0 && c.heldBack}
               </p>
@@ -623,5 +692,143 @@ function LyricWriter({ locale, language, onUse }: { locale: Locale; language: st
         )}
       </div>
     </section>
+  );
+}
+
+/** Beat mode fields (US-015, REQ-F-04): genre, tempo, key and instruments to feature or leave out. */
+function BeatFields({
+  t,
+  settings,
+  update,
+  prompt,
+  setPrompt,
+  promptCount,
+  title,
+  setTitle,
+  fieldError,
+}: {
+  t: AppText;
+  settings: Settings;
+  update: (patch: Partial<Settings>) => void;
+  prompt: string;
+  setPrompt: (v: string) => void;
+  promptCount: number;
+  title: string;
+  setTitle: (v: string) => void;
+  fieldError: (name: string) => string | null;
+}) {
+  const c = t.create;
+  const bpmError = fieldError("bpm");
+  const toggle = (list: "include" | "exclude", name: string, on: boolean) => {
+    const other = list === "include" ? "exclude" : "include";
+    const next = on ? [...settings[list], name].slice(0, 8) : settings[list].filter((x) => x !== name);
+    // An instrument cannot be in both lists.
+    update({ [list]: next, [other]: settings[other].filter((x) => x !== name) } as Partial<Settings>);
+  };
+  return (
+    <div className="stack">
+      <p className="small muted" style={{ margin: 0 }}>
+        {c.beatIntro}
+      </p>
+      <div className="grid-2">
+        <div className="field">
+          <label htmlFor="genre">{c.genre}</label>
+          <select id="genre" className="select" value={settings.genre} onChange={(e) => update({ genre: e.target.value })} aria-invalid={fieldError("genre") !== null}>
+            {GENRES.map((g) => (
+              <option key={g} value={g}>
+                {c.genres[g]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="bpm">{c.bpm}</label>
+          <input
+            id="bpm"
+            className="input"
+            type="number"
+            inputMode="numeric"
+            min={MIN_BPM}
+            max={MAX_BPM}
+            step={1}
+            value={Number.isNaN(settings.bpm) ? "" : settings.bpm}
+            onChange={(e) => update({ bpm: e.target.value === "" ? NaN : Number(e.target.value) })}
+            aria-describedby="bpm-hint bpm-error"
+            aria-invalid={bpmError !== null || !(settings.bpm >= MIN_BPM && settings.bpm <= MAX_BPM)}
+          />
+          <p id="bpm-hint" className="hint">
+            {c.bpmHint}
+          </p>
+          {bpmError && (
+            <p id="bpm-error" className="error">
+              {bpmError}
+            </p>
+          )}
+        </div>
+        <fieldset className="field key-field">
+          <legend>{c.key}</legend>
+          <div className="cluster">
+            <select aria-label={c.key} className="select" value={settings.tonic} onChange={(e) => update({ tonic: e.target.value })}>
+              <option value="any">{c.anyKey}</option>
+              {TONICS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+            {settings.tonic !== "any" && (
+              <select aria-label={`${c.key}: ${c.major} / ${c.minor}`} className="select" value={settings.quality} onChange={(e) => update({ quality: e.target.value as "major" | "minor" })}>
+                <option value="major">{c.major}</option>
+                <option value="minor">{c.minor}</option>
+              </select>
+            )}
+          </div>
+        </fieldset>
+        <div className="field">
+          <label htmlFor="beat-title">{c.title}</label>
+          <input id="beat-title" className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={c.beatTitlePlaceholder} />
+        </div>
+      </div>
+      {(["include", "exclude"] as const).map((list) => (
+        <fieldset key={list} className="field">
+          <legend>{list === "include" ? c.include : c.exclude}</legend>
+          <p className="hint" style={{ marginBlockStart: 0 }}>
+            {c.instrumentsHint}
+          </p>
+          <div className="check-chips">
+            {INSTRUMENTS.map((name) => {
+              const on = settings[list].includes(name);
+              return (
+                <label key={name} className="check-chip">
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    disabled={!on && settings[list].length >= 8}
+                    onChange={(e) => toggle(list, name, e.target.checked)}
+                  />
+                  <span>{c.instruments[name]}</span>
+                </label>
+              );
+            })}
+          </div>
+          {fieldError(list) && <p className="error">{fieldError(list)}</p>}
+        </fieldset>
+      ))}
+      <div className="field">
+        <label htmlFor="beat-extra">{c.beatExtra}</label>
+        <input
+          id="beat-extra"
+          className="input"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder={c.beatExtraPlaceholder}
+          aria-describedby="beat-extra-count"
+          aria-invalid={promptCount > MAX_PROMPT}
+        />
+        <p id="beat-extra-count" className={promptCount > MAX_PROMPT ? "counter over" : "counter"}>
+          {promptCount} / {MAX_PROMPT}
+        </p>
+      </div>
+    </div>
   );
 }

@@ -9,15 +9,28 @@ import { dateTime, languageName, lengthLabel, problem } from "@/lib/format";
 import { appText, errorText, type AppText } from "@/lib/i18n";
 import type { Locale } from "@/lib/messages";
 import type { Me } from "@/lib/session";
+import Blocked from "@/components/Blocked";
 import { DeleteDialog, RenameDialog } from "../../library/Library";
 
-type Take = { index: number; status: "ready" | "withheld" | "failed"; audioUrl: string | null; format: string | null };
+type Take = { index: number; status: "ready" | "withheld" | "failed"; audioUrl: string | null; format: string | null; tempoBpm: number | null };
+type Beat = { genre: string; bpm: number; key: string; include: string[]; exclude: string[] };
+type Takedown = {
+  id: string;
+  rightClaimed: string;
+  status: "actioned" | "appealed" | "restored";
+  decisionNote: string | null;
+  appealNote: string | null;
+  appealDueAt: string | null;
+  appealDecisionNote: string | null;
+  appealDecidedAt: string | null;
+};
+type Share = { id: string; visibility: "private" | "public"; takeIndex: number; hint: string; views: number; createdAt: string; url: string | null };
 type Song = {
   id: string;
   title: string;
   titleLatin: string;
   languageTag: string;
-  mode: "vibe" | "lyrics";
+  mode: "vibe" | "lyrics" | "beat";
   prompt: string;
   lyrics: string | null;
   vocalType: string | null;
@@ -31,6 +44,8 @@ type Song = {
   downloadFormats: string[];
   certificateId: string | null;
   createdAt: string;
+  beat: Beat | null;
+  takedown: Takedown | null;
 };
 type LedgerEvent = { seq: number; type: string; actor: "human" | "ai" | "system"; createdAt: string; hash: string };
 type Provenance = { events: LedgerEvent[]; verification: { valid: boolean; events: number; reason: string | null } };
@@ -107,7 +122,7 @@ function SongView({ me, locale, id }: { me: Me; locale: Locale; id: string }) {
         </div>
         <div className="stack" style={{ flex: 1, minInlineSize: 240, gap: "var(--space-2)" }}>
           <p className="eyebrow" style={{ margin: 0 }}>
-            {song.mode === "lyrics" ? S.fromLyrics : S.fromVibe}
+            {song.mode === "lyrics" ? S.fromLyrics : song.mode === "beat" ? S.fromBeat : S.fromVibe}
           </p>
           <h1 lang={titleLang} style={{ margin: 0, overflowWrap: "anywhere" }}>
             {song.title}
@@ -122,14 +137,21 @@ function SongView({ me, locale, id }: { me: Me; locale: Locale; id: string }) {
             {song.vocalType ? S.voice(t.create.voices[song.vocalType] ?? song.vocalType) : song.instrumental ? S.instrumental : ""}
             {S.made(dateTime(song.createdAt, t.intlLocale))}
           </p>
+          {song.beat && <BeatFacts beat={song.beat} t={t} />}
           <div className="cluster">
             <AiLabel text={S.aiMusic} />
-            <span className={song.rightsStatus === "bm_owned" ? "badge" : "badge badge-success"}>
-              {song.rightsStatus === "user_owned" ? S.youOwn : song.rightsStatus === "free_licensed" ? S.licensed : S.personal}
-            </span>
+            {song.rightsStatus === "disabled" ? (
+              <span className="badge badge-danger">{S.removedBadge}</span>
+            ) : (
+              <span className={song.rightsStatus === "bm_owned" ? "badge" : "badge badge-success"}>
+                {song.rightsStatus === "user_owned" ? S.youOwn : song.rightsStatus === "free_licensed" ? S.licensed : S.personal}
+              </span>
+            )}
           </div>
         </div>
       </header>
+
+      {song.takedown && <TakedownNotice song={song} takedown={song.takedown} t={t} locale={locale} onChange={load} />}
 
       {song.status === "queued" || song.status === "running" ? (
         <div className="notice cluster" role="status">
@@ -164,6 +186,7 @@ function SongView({ me, locale, id }: { me: Me; locale: Locale; id: string }) {
           {current?.audioUrl && (
             <Player src={current.audioUrl} title={song.title} takeLabel={S.take(current.index)} durationHint={song.durationSeconds} locale={locale} />
           )}
+          {current?.tempoBpm != null && <p className="small muted" style={{ margin: 0 }}>{t.create.tempo(Math.round(current.tempoBpm))}</p>}
           {song.takes
             .filter((tk) => tk.status === "withheld")
             .map((tk) => (
@@ -191,10 +214,11 @@ function SongView({ me, locale, id }: { me: Me; locale: Locale; id: string }) {
         </section>
 
         <div className="stack">
-          {song.status === "succeeded" && current?.audioUrl && (
+          {song.status === "succeeded" && current?.audioUrl && song.rightsStatus !== "disabled" && (
             <Downloads song={song} take={current.index} plan={me.plan} t={t} locale={locale} />
           )}
           <Rights song={song} t={t} locale={locale} onChange={load} />
+          {song.status === "succeeded" && song.rightsStatus !== "disabled" && <SharePanel song={song} take={take} t={t} locale={locale} />}
         </div>
       </div>
 
@@ -523,6 +547,217 @@ function Rights({ song, t, locale, onChange }: { song: Song; t: AppText; locale:
           </button>
         </div>
       </dialog>
+    </section>
+  );
+}
+
+function BeatFacts({ beat, t }: { beat: Beat; t: AppText }) {
+  const c = t.create;
+  const key = beat.key === "any" ? c.anyKey : beat.key.replace("major", c.major).replace("minor", c.minor);
+  const names = (list: string[]) => list.map((i) => c.instruments[i] ?? i).join(", ");
+  return (
+    <p className="small" style={{ margin: 0 }}>
+      {t.song.beatFacts(c.genres[beat.genre] ?? beat.genre, beat.bpm, key)}
+      {beat.include.length > 0 && <> · {t.song.featuring(names(beat.include))}</>}
+      {beat.exclude.length > 0 && <> · {t.song.without(names(beat.exclude))}</>}
+    </p>
+  );
+}
+
+/** US-032: why the song was removed, and the owner's appeal (REQ-F-59, 72 hours). */
+function TakedownNotice({ song, takedown, t, locale, onChange }: { song: Song; takedown: Takedown; t: AppText; locale: Locale; onChange: () => void }) {
+  const T = t.takedown;
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const right = T.rights[takedown.rightClaimed] ?? T.rights.other;
+
+  async function appeal() {
+    setBusy(true);
+    setError("");
+    const r = await fetch(`/v1/songs/${song.id}/takedown/appeal`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ note }),
+    });
+    setBusy(false);
+    if (!r.ok) return setError(errorText(locale, await problem(r)));
+    onChange();
+  }
+
+  if (takedown.status === "restored") {
+    return (
+      <div className="notice notice-success" role="status">
+        {T.restored}
+      </div>
+    );
+  }
+  const upheld = takedown.status === "actioned" && takedown.appealDecidedAt != null;
+  return (
+    <section className="notice notice-danger stack" aria-labelledby="takedown-heading">
+      <h2 id="takedown-heading" style={{ margin: 0, fontSize: "var(--step-1)" }}>
+        {T.heading}
+      </h2>
+      <p style={{ margin: 0 }}>{T.why(right)}</p>
+      {takedown.decisionNote && (
+        <p className="small" style={{ margin: 0 }}>
+          <strong>{T.note}:</strong> {takedown.decisionNote}
+        </p>
+      )}
+      {takedown.status === "appealed" && takedown.appealDueAt && (
+        <p role="status" style={{ margin: 0 }}>
+          {T.appealed(dateTime(takedown.appealDueAt, t.intlLocale))}
+        </p>
+      )}
+      {upheld && (
+        <p role="status" style={{ margin: 0 }}>
+          {T.upheld} {takedown.appealDecisionNote}
+        </p>
+      )}
+      {takedown.status === "actioned" && !upheld && (
+        <div className="stack">
+          <p className="small" style={{ margin: 0 }}>
+            {T.appealIntro}
+          </p>
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor="takedown-appeal">{T.appealLabel}</label>
+            <textarea id="takedown-appeal" className="textarea" rows={3} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
+          </div>
+          <div>
+            <button type="button" className="btn btn-secondary" disabled={busy || note.trim() === ""} onClick={appeal}>
+              {busy ? t.common.sending : T.appealSend}
+            </button>
+          </div>
+        </div>
+      )}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/**
+ * US-024: share links. The full link is shown once, when it is made (only its hash is stored);
+ * the list shows the last characters, plays and a way to stop each link.
+ */
+function SharePanel({ song, take, t, locale }: { song: Song; take: number; t: AppText; locale: Locale }) {
+  const H = t.share;
+  const [links, setLinks] = useState<Share[]>([]);
+  const [visibility, setVisibility] = useState<"private" | "public">("private");
+  const [made, setMade] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState<React.ReactNode>(null);
+  const [copied, setCopied] = useState(false);
+
+  const load = useCallback(() => {
+    fetch(`/v1/songs/${song.id}/shares`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setLinks)
+      .catch(() => setLinks([]));
+  }, [song.id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function create() {
+    setBusy(true);
+    setError(null);
+    setMessage("");
+    const r = await fetch(`/v1/songs/${song.id}/shares`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ visibility, takeIndex: take, locale }),
+    });
+    setBusy(false);
+    if (!r.ok) {
+      const p = await problem(r);
+      return setError(p.code?.startsWith("moderation_") ? <Blocked locale={locale} p={p} /> : <p className="error">{errorText(locale, p)}</p>);
+    }
+    const share: Share = await r.json();
+    setMade(`${window.location.origin}${share.url}`);
+    load();
+  }
+
+  async function revoke(id: string) {
+    const r = await fetch(`/v1/songs/${song.id}/shares/${id}`, { method: "DELETE" });
+    if (r.ok) {
+      setMessage(H.revoked);
+      setMade(null);
+      load();
+    }
+  }
+
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked: the link is selected on screen to copy by hand.
+    }
+  }
+
+  return (
+    <section className="card flat stack" aria-labelledby="share-heading">
+      <h2 id="share-heading" style={{ margin: 0 }}>
+        {H.heading}
+      </h2>
+      <p className="small muted" style={{ margin: 0 }}>
+        {H.intro}
+      </p>
+      <fieldset className="field">
+        <legend>{H.visibility}</legend>
+        {(["private", "public"] as const).map((v) => (
+          <label key={v} className="check">
+            <input type="radio" name="share-visibility" value={v} checked={visibility === v} onChange={() => setVisibility(v)} />
+            <span>{H[v]}</span>
+          </label>
+        ))}
+      </fieldset>
+      <div>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={create}>
+          {busy ? H.making : `${H.make} · ${t.song.take(take)}`}
+        </button>
+      </div>
+      <div aria-live="polite" className="stack">
+        {made && (
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor="share-url">{H.made}</label>
+            <div className="cluster" style={{ flexWrap: "nowrap" }}>
+              <input id="share-url" className="input" readOnly value={made} onFocus={(e) => e.currentTarget.select()} />
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(made)}>
+                {copied ? t.common.copied : t.common.copy}
+              </button>
+            </div>
+          </div>
+        )}
+        {message && <p className="small" style={{ margin: 0 }}>{message}</p>}
+        {error}
+      </div>
+      <h3 style={{ margin: 0 }}>{H.live}</h3>
+      {links.length === 0 ? (
+        <p className="small muted" style={{ margin: 0 }}>
+          {H.none}
+        </p>
+      ) : (
+        <ul className="share-list">
+          {links.map((l) => (
+            <li key={l.id} className="spread">
+              <span className="small">
+                <span className="badge">{H.kind[l.visibility]}</span> {H.linkHint(l.hint)} · {t.song.take(l.takeIndex)} · {H.views(l.views)}
+              </span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => revoke(l.id)} aria-label={`${H.revoke}: ${H.linkHint(l.hint)}`}>
+                {H.revoke}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

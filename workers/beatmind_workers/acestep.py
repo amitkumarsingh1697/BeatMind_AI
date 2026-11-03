@@ -18,6 +18,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
+from beatmind_workers import beat
+
 # BeatMind language codes to ACE-Step vocal languages. Hinglish is sung as Hindi with Latin lyrics.
 VOCAL_LANGUAGE = {"en": "en", "hi": "hi", "hinglish": "hi"}
 # Vocal type (US-017) as words in the ACE-Step caption.
@@ -48,13 +50,17 @@ class AceStepRunner:
     def params(payload: dict[str, Any]) -> dict[str, Any]:
         """Turns a BeatMind job payload into ACE-Step ``/release_task`` parameters."""
         lyrics = str(payload.get("lyrics") or "")
-        if payload.get("instrumental"):
+        settings = payload.get("beat")
+        if payload.get("instrumental") or settings:
             lyrics = "[Instrumental]"
         prompt = str(payload.get("prompt", ""))
+        if settings:
+            # US-015: beat settings become style words; BPM and key also go as model parameters.
+            prompt = beat.style(settings, prompt)
         vocal = payload.get("vocalType")
         if not payload.get("instrumental") and vocal in VOCAL_STYLE:
             prompt = f"{prompt}, {VOCAL_STYLE[vocal]}" if prompt else VOCAL_STYLE[vocal]
-        return {
+        params: dict[str, Any] = {
             "prompt": prompt,
             "lyrics": lyrics,
             "vocal_language": VOCAL_LANGUAGE.get(str(payload.get("language", "en")), "en"),
@@ -64,6 +70,11 @@ class AceStepRunner:
             "thinking": not lyrics,
             "audio_format": "mp3",
         }
+        if settings:
+            params["bpm"] = int(settings["bpm"])
+            if settings.get("key") not in (None, "any"):
+                params["key_scale"] = settings["key"]
+        return params
 
     def render(self, payload: dict[str, Any]) -> list[FetchedTake]:
         started = time.monotonic()

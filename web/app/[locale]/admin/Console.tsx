@@ -8,6 +8,7 @@ import { dateTime, problem } from "@/lib/format";
 import type { Locale } from "@/lib/messages";
 import type { Me } from "@/lib/session";
 import { CapsPanel, DeadJobs, LedgerPanel, PlanPanel } from "./jobs/DeadJobs";
+import TakedownQueue from "./Takedowns";
 
 type Mfa = { enrolled: boolean; required: boolean; verified: boolean; recoveryCodesLeft: number };
 type UserRow = {
@@ -42,6 +43,7 @@ type Case = {
 type AuditRow = { at: string; actor: string | null; action: string; target: string | null; detail: string | null };
 
 const SECTIONS = [
+  { id: "takedowns", label: "Takedowns" },
   { id: "moderation", label: "Moderation" },
   { id: "users", label: "Users" },
   { id: "operations", label: "Caps and plans" },
@@ -87,6 +89,7 @@ function Console() {
           ))}
         </nav>
       </header>
+      <TakedownQueue />
       <ModerationQueue />
       <UsersPanel />
       <div id="operations" className="grid-2">

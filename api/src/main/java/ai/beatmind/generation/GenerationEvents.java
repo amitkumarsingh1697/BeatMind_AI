@@ -50,7 +50,8 @@ class GenerationEvents {
                     break;
                 }
                 Generation g = current.get();
-                String fingerprint = g.status() + ":" + g.takes().size();
+                // Queue moves are sent too, so the live region can say the new position (US-014).
+                String fingerprint = g.status() + ":" + g.takes().size() + ":" + g.queuePosition();
                 if (!Objects.equals(fingerprint, lastSent)) {
                     emitter.send(SseEmitter.event().name("status").data(g, MediaType.APPLICATION_JSON));
                     lastSent = fingerprint;

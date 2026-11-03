@@ -72,10 +72,15 @@ class SongController {
     private final TextModeration moderation;
     private final ModerationCases cases;
     private final Licences licences;
+    private final Takedowns takedowns;
+    private final Shares shares;
 
     SongController(SongStore songs, AudioStore audio, ProvenanceLedger ledger, DownloadTokens tokens, Credits credits,
-                   GenerationStore generations, TextModeration moderation, ModerationCases cases, Licences licences) {
+                   GenerationStore generations, TextModeration moderation, ModerationCases cases, Licences licences,
+                   Takedowns takedowns, Shares shares) {
         this.licences = licences;
+        this.takedowns = takedowns;
+        this.shares = shares;
         this.moderation = moderation;
         this.cases = cases;
         this.generations = generations;
@@ -107,7 +112,8 @@ class SongController {
         CurrentUser me = CurrentUser.get().orElseThrow();
         SongStore.Song song = owned(id, me);
         String certificate = licences.latestForSong(id).map(Licences.Certificate::id).orElse(null);
-        return SongViews.of(song, songs.takes(id), me.plan(), certificate);
+        Takedowns.OwnerView takedown = takedowns.forOwner(id).orElse(null);
+        return SongViews.of(song, songs.takes(id), me.plan(), certificate, takedown);
     }
 
     @PatchMapping("/v1/songs/{id}")
@@ -139,6 +145,7 @@ class SongController {
         CurrentUser me = CurrentUser.get().orElseThrow();
         owned(id, me);
         songs.softDelete(id, me.id());
+        shares.revokeAll(id);
         ledger.append(id, "deleted", Actor.HUMAN, Map.of());
         return ResponseEntity.noContent().build();
     }

@@ -35,9 +35,10 @@ class GenerationController {
 
     /**
      * A song request. Vibe mode needs a description; lyrics mode (US-017) needs lyrics, and the
-     * prompt is then the style. Beat mode arrives with US-015.
+     * prompt is then the style. Beat mode (US-015) needs a genre and a BPM and makes an
+     * instrumental; {@code kind} beat is the same as {@code mode} beat.
      *
-     * @param mode vibe or lyrics (default vibe)
+     * @param mode vibe, lyrics or beat (default vibe)
      * @param prompt vibe: what the song should feel like; lyrics: the style. Up to 500 characters.
      * @param lyrics up to 3,000 characters in Hindi, Hinglish or English (REQ-F-02)
      * @param title optional, up to 100 characters; made from the lyrics or description if blank
@@ -47,10 +48,15 @@ class GenerationController {
      * @param turnstileToken Cloudflare Turnstile token when the bot check is on (REQ-SEC-09)
      * @param lyricsDraftId the AI draft the lyrics came from, if any (US-018), so the ledger can say
      *     which lines the AI wrote and whether the creator changed them
+     * @param genre beat mode: one of {@link SongRequests#GENRES}
+     * @param bpm beat mode: 60 to 200 (REQ-F-04)
+     * @param key beat mode: for example "A minor", or "any"
+     * @param includeInstruments beat mode: instruments to feature
+     * @param excludeInstruments beat mode: instruments to leave out
      */
     record CreateRequest(
-            @Pattern(regexp = "song", message = "use /v1/lyrics for lyrics; beat mode comes later") String kind,
-            @Pattern(regexp = "vibe|lyrics") String mode,
+            @Pattern(regexp = "song|beat", message = "use /v1/lyrics for lyrics") String kind,
+            @Pattern(regexp = "vibe|lyrics|beat") String mode,
             @Size(max = 4000) String prompt,
             @Size(max = 30000) String lyrics,
             @Size(max = 1000) String title,
@@ -59,7 +65,17 @@ class GenerationController {
             Boolean instrumental,
             @Min(30) @Max(240) Integer durationSeconds,
             @Size(max = 4096) String turnstileToken,
-            UUID lyricsDraftId) {}
+            UUID lyricsDraftId,
+            @Size(max = 40) String genre,
+            Integer bpm,
+            @Size(max = 20) String key,
+            @Size(max = 20) List<@Size(max = 40) String> includeInstruments,
+            @Size(max = 20) List<@Size(max = 40) String> excludeInstruments) {
+
+        String effectiveMode() {
+            return "beat".equals(kind) ? "beat" : mode;
+        }
+    }
 
     static final String SUSPENDED = "Your account is paused while we look into a report. Contact support if you think this is a mistake.";
 
@@ -96,8 +112,10 @@ class GenerationController {
             return problem(HttpStatus.FORBIDDEN, "bot_check", "We could not confirm you are a person. Reload the page and try again.");
         }
         try {
-            SongRequests.Request checked = SongRequests.check(req.mode(), req.prompt(), req.lyrics(), req.title(),
-                    req.language(), req.vocalType(), req.instrumental(), req.durationSeconds());
+            SongRequests.Request checked = SongRequests.check(req.effectiveMode(), req.prompt(), req.lyrics(), req.title(),
+                    req.language(), req.vocalType(), req.instrumental(), req.durationSeconds(),
+                    new SongRequests.BeatInput(req.genre(), req.bpm(), req.key(), req.includeInstruments(),
+                            req.excludeInstruments()));
             // REQ-F-50, REQ-F-51: screen everything the creator typed before anything is queued.
             Map<String, String> fields = new LinkedHashMap<>();
             fields.put("prompt", checked.prompt());

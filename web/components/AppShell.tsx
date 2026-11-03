@@ -52,6 +52,7 @@ export default function AppShell({
           <a href={`/${locale}/terms`} style={{ marginInlineStart: "auto" }}>
             {t.terms}
           </a>
+          <a href={`/${locale}/report`}>{t.report}</a>
           <a href={`/${locale}/help`}>{t.help}</a>
         </div>
       </footer>

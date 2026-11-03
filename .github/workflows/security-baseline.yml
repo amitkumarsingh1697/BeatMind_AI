@@ -1,0 +1,43 @@
+# US-042: OWASP ZAP baseline (passive) scan. Run by hand against staging; never against production.
+name: Security baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Origin to scan (staging only)
+        required: true
+        default: https://staging.beatmind.ai
+
+permissions:
+  contents: read
+
+jobs:
+  zap-baseline:
+    name: ZAP baseline scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refuse production
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          case "$TARGET" in
+            https://beatmind.ai|https://beatmind.ai/*|https://www.beatmind.ai*) echo "Do not scan production."; exit 1 ;;
+          esac
+      - name: Scan
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          mkdir -p zap-out && chmod 777 zap-out
+          docker run --rm -v "$PWD/.zap:/zap/wrk/rules:ro" -v "$PWD/zap-out:/zap/wrk" \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t "$TARGET" -c rules/rules.tsv -r report.html -J report.json -I -j -m 5
+          # -I: warnings do not fail the job; FAIL rules in rules.tsv still do.
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-baseline-report
+          path: zap-out/

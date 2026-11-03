@@ -57,9 +57,29 @@ test("forwards the Sprint 3 calls", () => {
 });
 
 test("refuses Sprint 3 lookalikes", () => {
-  assert.ok(!isAllowed("DELETE", "me"));
   assert.ok(!isAllowed("POST", "me/mfa/disable"));
   assert.ok(!isAllowed("GET", "certificates/bm-7k2q-9xwm-4d1r"));
   assert.ok(!isAllowed("GET", "certificates/BM-7K2Q-9XWM-4D1R/../x"));
   assert.ok(!isAllowed("PATCH", "lyrics"));
+});
+
+test("forwards the Sprint 4 calls", () => {
+  assert.ok(isAllowed("POST", "reports"));
+  assert.ok(isAllowed("POST", `songs/${ID}/takedown/appeal`));
+  assert.ok(isAllowed("GET", "admin/takedowns"));
+  assert.ok(isAllowed("POST", `admin/takedowns/${ID}/appeal-decision`));
+  assert.ok(isAllowed("GET", "me/export"));
+  assert.ok(isAllowed("DELETE", "me"));
+  assert.ok(isAllowed("POST", `songs/${ID}/shares`));
+  assert.ok(isAllowed("DELETE", `songs/${ID}/shares/${ID}`));
+  assert.ok(isAllowed("GET", "shared/AbCdEfGhIjKlMnOpQrStUvWxYz012345"));
+  assert.ok(isAllowed("GET", "shared/AbCdEfGhIjKlMnOpQrStUvWxYz012345/audio"));
+});
+
+test("refuses Sprint 4 lookalikes", () => {
+  assert.ok(!isAllowed("GET", "reports"));
+  assert.ok(!isAllowed("DELETE", `songs/${ID}/shares`));
+  assert.ok(!isAllowed("GET", "shared/short"));
+  assert.ok(!isAllowed("GET", "shared/AbCdEfGhIjKlMnOpQrStUvWxYz012345/../../me"));
+  assert.ok(!isAllowed("POST", `admin/takedowns/${ID}/delete`));
 });

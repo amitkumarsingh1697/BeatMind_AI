@@ -105,9 +105,12 @@ class JobFinalizer {
                 Map<String, Object> assets = assets(t);
                 Long watermark = t.hasNonNull("watermarkId") ? t.get("watermarkId").asLong() : null;
                 JsonNode screen = t.path("similarity");
+                // US-015: the worker's tempo check on beat-mode takes.
+                JsonNode tempo = t.path("tempo");
                 jdbc.sql("""
-                        INSERT INTO take (id, song_id, idx, status, watermark_id, assets, screen)
-                        VALUES (:id, :song, :idx, :status, :wm, CAST(:assets AS jsonb), CAST(:screen AS jsonb))
+                        INSERT INTO take (id, song_id, idx, status, watermark_id, assets, screen, analysis)
+                        VALUES (:id, :song, :idx, :status, :wm, CAST(:assets AS jsonb), CAST(:screen AS jsonb),
+                                CAST(:analysis AS jsonb))
                         ON CONFLICT (song_id, idx) DO NOTHING
                         """)
                         .param("id", UUID.randomUUID())
@@ -117,6 +120,7 @@ class JobFinalizer {
                         .param("wm", watermark)
                         .param("assets", json.writeValueAsString(assets))
                         .param("screen", screen.isObject() ? json.writeValueAsString(screen) : null)
+                        .param("analysis", tempo.isObject() ? json.writeValueAsString(Map.of("tempo", tempo)) : null)
                         .update();
                 if (isWithheld) {
                     withheld++;
@@ -154,6 +158,11 @@ class JobFinalizer {
                     });
                     payload.put("fileSha256", hashes);
                     payload.put("c2pa", t.path("c2pa").asBoolean(false));
+                    if (tempo.isObject()) {
+                        payload.put("tempoTargetBpm", tempo.path("targetBpm").asInt());
+                        payload.put("tempoMeasuredBpm", tempo.path("measuredBpm").asDouble());
+                        payload.put("tempoWithinTolerance", tempo.path("withinTolerance").asBoolean(false));
+                    }
                     if (screen.isObject()) {
                         payload.put("similarityScreened", true);
                         payload.put("similarityScore", screen.path("score").asDouble());

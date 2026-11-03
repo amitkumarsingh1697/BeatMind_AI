@@ -10,7 +10,7 @@ import time
 
 import psycopg
 
-from beatmind_workers import lyrics, queue, stub
+from beatmind_workers import beat, finishing, lyrics, queue, stub
 from beatmind_workers.acestep import AceStepRunner, FetchedTake
 from beatmind_workers.finishing import Finisher
 from beatmind_workers.lyrics import LlmLyricWriter, StubLyricWriter
@@ -28,10 +28,28 @@ def render(job: queue.Job, runner: str, acestep: AceStepRunner | None) -> list[F
     takes = int(job.payload.get("takes", TAKES_PER_REQUEST))
     if runner == "stub":
         prompt = str(job.payload.get("prompt", ""))
+        settings = job.payload.get("beat")
+        if settings:
+            bpm = float(settings["bpm"])
+            return [
+                FetchedTake(beat.render_stub(bpm, f"{prompt}#take{i}"), "wav") for i in range(1, takes + 1)
+            ]
         return [FetchedTake(stub.render_tone(f"{prompt}#take{i}"), "wav") for i in range(1, takes + 1)]
     if runner == "acestep" and acestep is not None:
         return acestep.render(job.payload)
     raise ValueError(f"unknown runner {runner!r}; use stub or acestep")
+
+
+def tempo_check(take: FetchedTake, target_bpm: float) -> dict:
+    """US-015: measures the tempo of a rendered beat."""
+    if take.format == "wav":
+        try:
+            samples, rate = beat.read_wav(take.data)
+            return beat.check(samples, rate, target_bpm)
+        except Exception as e:  # noqa: BLE001 - not 16-bit PCM; fall back to ffmpeg
+            log.debug("reading the WAV directly failed (%s); decoding with ffmpeg", e)
+    samples = finishing.decode(take.data)
+    return beat.check(samples.mean(axis=1), finishing.watermark.SAMPLE_RATE, target_bpm)
 
 
 def run_job(
@@ -49,6 +67,7 @@ def run_job(
     the reference index (US-029) and finish it: with a finisher (the default in the worker process)
     each take becomes a watermarked, labelled and C2PA-signed MP3 192, MP3 320 and WAV. A take that
     matches a known recording is still finished, so an admin can review it, but marked withheld.
+    Beat jobs (US-015) also get a tempo check on every take.
     """
     if job.kind == "lyrics":
         return lyrics.write(job.payload, writer or StubLyricWriter())
@@ -56,6 +75,9 @@ def run_job(
     for i, take in enumerate(render(job, runner, acestep), start=1):
         raw_key = store.put(f"takes/{job.id}/take-{i}.{take.format}", take.data, CONTENT_TYPES[take.format])
         entry: dict = {"key": raw_key, "format": take.format, "runner": runner}
+        settings = job.payload.get("beat")
+        if settings:
+            entry["tempo"] = tempo_check(take, float(settings["bpm"]))
         if screen is not None:
             result = screen.check(take.data)
             entry["similarity"] = {k: v for k, v in result.items() if k != "withheld"}
