@@ -134,6 +134,10 @@ class Finisher:
             "label": AI_LABEL,
             "rights": str(payload.get("rights", "bm_owned")),
         }
+        if payload.get("version"):
+            # US-038: an edited version of the take, and what was done to it.
+            details["version"] = int(payload["version"])
+            details["edit"] = str(payload.get("op", ""))
         finished = FinishedTake(watermark_id=mark, seconds=round(len(samples) / watermark.SAMPLE_RATE, 3))
         for name, (container, content_type, _) in ENCODINGS.items():
             encoded = encode(samples, name, metadata)

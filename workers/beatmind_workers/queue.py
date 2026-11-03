@@ -24,8 +24,10 @@ class Job:
     max_attempts: int
 
 
-def claim(conn: psycopg.Connection, worker_id: str, kinds: list[str]) -> Job | None:
-    """Claims the next queued job of the given kinds, or returns None if there is none."""
+def claim(
+    conn: psycopg.Connection, worker_id: str, kinds: list[str], providers: list[str] | None = None
+) -> Job | None:
+    """Claims the next queued job of the given kinds for the given providers (US-016), or None."""
     row = conn.execute(
         """
         UPDATE generation_job
@@ -33,13 +35,13 @@ def claim(conn: psycopg.Connection, worker_id: str, kinds: list[str]) -> Job | N
                locked_by = %s, locked_at = now(), started_at = coalesce(started_at, now()), updated_at = now()
          WHERE id = (
                 SELECT id FROM generation_job
-                 WHERE status = 'queued' AND available_at <= now() AND kind = ANY(%s)
+                 WHERE status = 'queued' AND available_at <= now() AND kind = ANY(%s) AND provider = ANY(%s)
                  ORDER BY priority DESC, available_at, created_at
                  FOR UPDATE SKIP LOCKED
                  LIMIT 1)
         RETURNING id, kind, payload, attempts, max_attempts
         """,
-        (worker_id, kinds),
+        (worker_id, kinds, providers or ["self"]),
     ).fetchone()
     conn.commit()
     if row is None:

@@ -10,9 +10,10 @@ import time
 
 import psycopg
 
-from beatmind_workers import beat, finishing, lyrics, queue, stub
+from beatmind_workers import beat, editing, finishing, lyrics, queue, stub, verify
 from beatmind_workers.acestep import AceStepRunner, FetchedTake
 from beatmind_workers.finishing import Finisher
+from beatmind_workers.lyria import LyriaRunner
 from beatmind_workers.lyrics import LlmLyricWriter, StubLyricWriter
 from beatmind_workers.similarity import Screen
 from beatmind_workers.storage import ObjectStore
@@ -23,9 +24,15 @@ TAKES_PER_REQUEST = 2  # REQ-F-05
 CONTENT_TYPES = {"wav": "audio/wav", "mp3": "audio/mpeg"}
 
 
-def render(job: queue.Job, runner: str, acestep: AceStepRunner | None) -> list[FetchedTake]:
+def render(
+    job: queue.Job, runner: str, acestep: AceStepRunner | None, lyria: LyriaRunner | None = None
+) -> list[FetchedTake]:
     """Makes the takes for a job with the configured runner."""
     takes = int(job.payload.get("takes", TAKES_PER_REQUEST))
+    if job.payload.get("provider") == "lyria" or runner == "lyria":
+        if lyria is None:
+            raise ValueError("job is for the Lyria fallback but this worker has no LYRIA_ENDPOINT")
+        return lyria.render(job.payload)
     if runner == "stub":
         prompt = str(job.payload.get("prompt", ""))
         settings = job.payload.get("beat")
@@ -52,6 +59,65 @@ def tempo_check(take: FetchedTake, target_bpm: float) -> dict:
     return beat.check(samples.mean(axis=1), finishing.watermark.SAMPLE_RATE, target_bpm)
 
 
+def edit_renderer(job: queue.Job, runner: str, acestep: AceStepRunner | None) -> editing.Render:
+    """New audio for extend and regenerate, from the runner that made the song."""
+    if runner != "acestep" or acestep is None:
+        return editing.stub_render
+
+    def make(seconds: float, seed: str) -> object:
+        payload = dict(job.payload, durationSeconds=max(10.0, seconds), takes=1)
+        payload["prompt"] = str(job.payload.get("editPrompt") or job.payload.get("prompt", ""))
+        clip = finishing.decode(acestep.render(payload)[0].data)
+        return clip[: int(seconds * editing.RATE)]
+
+    return make  # type: ignore[return-value]
+
+
+def run_edit(
+    job: queue.Job, store: ObjectStore, runner: str, acestep: AceStepRunner | None, finisher: Finisher
+) -> dict:
+    """US-038: one edit of one take, finished like a new take (watermark, labels, C2PA)."""
+    p = job.payload
+    index, version, op = int(p["takeIndex"]), int(p["version"]), str(p["op"])
+    source = finishing.decode(store.get(str(p["sourceKey"])))
+    seed = f"{p.get('songId')}#take{index}#v{version}"
+    edited = editing.apply(source, op, dict(p.get("params", {})), edit_renderer(job, runner, acestep), seed)
+    raw = editing.to_wav(edited.samples)
+    base = f"edits/{p.get('songId')}/take-{index}-v{version}"
+    raw_key = store.put(f"{base}-raw.wav", raw, CONTENT_TYPES["wav"])
+    finished = finisher.finish(raw, p, index)
+    ext = {"mp3_192": "192.mp3", "mp3_320": "320.mp3", "wav": "master.wav"}
+    entry: dict = {
+        "runner": runner if op in ("extend", "regenerate") else "editor",
+        "rawKey": raw_key,
+        "assets": {
+            name: {
+                "key": store.put(f"{base}-{ext[name]}", asset.data, asset.content_type),
+                "contentType": asset.content_type,
+                "sha256": asset.sha256,
+                "bytes": len(asset.data),
+            }
+            for name, asset in finished.assets.items()
+        },
+        "watermarkId": finished.watermark_id,
+        "durationSeconds": finished.seconds,
+        "c2pa": True,
+    }
+    if edited.seams:
+        entry["seam"] = editing.seam_check(edited.samples, edited.seams)
+    return {"takes": [entry]}
+
+
+def run_verify(job: queue.Job, store: ObjectStore) -> dict:
+    """US-021: read the watermark and credentials of an uploaded file, then delete the upload."""
+    key = str(job.payload["uploadKey"])
+    data = store.get(key)
+    try:
+        return {"verify": verify.check(data)}
+    finally:
+        store.delete(key)
+
+
 def run_job(
     job: queue.Job,
     store: ObjectStore,
@@ -60,6 +126,7 @@ def run_job(
     finisher: Finisher | None = None,
     screen: Screen | None = None,
     writer: StubLyricWriter | LlmLyricWriter | None = None,
+    lyria: LyriaRunner | None = None,
 ) -> dict:
     """Runs one job and returns the result the API reads (JobFinalizer).
 
@@ -71,8 +138,12 @@ def run_job(
     """
     if job.kind == "lyrics":
         return lyrics.write(job.payload, writer or StubLyricWriter())
+    if job.kind == "verify":
+        return run_verify(job, store)
+    if job.kind == "edit":
+        return run_edit(job, store, runner, acestep, finisher or Finisher())
     stored = []
-    for i, take in enumerate(render(job, runner, acestep), start=1):
+    for i, take in enumerate(render(job, runner, acestep, lyria), start=1):
         raw_key = store.put(f"takes/{job.id}/take-{i}.{take.format}", take.data, CONTENT_TYPES[take.format])
         entry: dict = {"key": raw_key, "format": take.format, "runner": runner}
         settings = job.payload.get("beat")
@@ -102,20 +173,26 @@ def run_job(
         stored.append(entry)
     if not stored:
         raise RuntimeError("runner returned no takes")
-    return {"takes": stored}
+    result: dict = {"takes": stored}
+    if job.payload.get("provider") == "lyria" and lyria is not None:
+        result["costUsd"] = lyria.cost(len(stored))  # US-016: actual spend against the daily cap
+    return result
 
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     dsn = os.environ["DATABASE_URL"]
     runner = os.environ.get("BEATMIND_RUNNER", "stub")
-    kinds = os.environ.get("BEATMIND_JOB_KINDS", "song,beat,lyrics").split(",")
+    kinds = os.environ.get("BEATMIND_JOB_KINDS", "song,beat,lyrics,edit,verify").split(",")
+    # US-016: "self" for our GPU workers; a worker with "lyria" runs the paid fallback.
+    providers = os.environ.get("BEATMIND_PROVIDERS", "self").split(",")
     lease = int(os.environ.get("BEATMIND_LEASE_SECONDS", "600"))
     idle_sleep = float(os.environ.get("BEATMIND_IDLE_SLEEP", "1.0"))
     worker_id = f"{socket.gethostname()}:{os.getpid()}"
     acestep = None
     if runner == "acestep":
         acestep = AceStepRunner(os.environ["ACESTEP_URL"], os.environ.get("ACESTEP_API_KEY", ""))
+    lyria = LyriaRunner.from_env() if "lyria" in providers else None
     # Watermark, AI label and C2PA on every take (REQ-F-30). Off only to debug the model runner.
     finisher = Finisher() if os.environ.get("BEATMIND_FINISHING", "on") != "off" else None
     # US-018: template lyrics unless a lyric model endpoint is configured.
@@ -146,13 +223,13 @@ def main() -> None:
         screen = Screen(screen_conn) if screening else None
         while not stopping:
             queue.requeue_stale(conn, lease)
-            job = queue.claim(conn, worker_id, kinds)
+            job = queue.claim(conn, worker_id, kinds, providers)
             if job is None:
                 time.sleep(idle_sleep)
                 continue
             started = time.monotonic()
             try:
-                result = run_job(job, store, runner, acestep, finisher, screen, writer)
+                result = run_job(job, store, runner, acestep, finisher, screen, writer, lyria)
             except Exception as exc:  # noqa: BLE001 - any model failure is recorded on the job
                 status = queue.fail(conn, job, f"{type(exc).__name__}: {exc}")
                 log.warning("job %s failed (attempt %d, now %s): %s", job.id, job.attempts, status, exc)

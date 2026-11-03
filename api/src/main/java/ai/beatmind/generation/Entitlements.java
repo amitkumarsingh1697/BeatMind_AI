@@ -74,6 +74,21 @@ record Entitlements(
         return paid(plan) ? List.of("mp3", "wav") : List.of("mp3");
     }
 
+    /**
+     * Formats for one song. REQ-F-58: a song the user owns keeps the paid formats after the plan
+     * ends; a removed song has none.
+     */
+    static List<String> formats(String viewerPlan, String rights) {
+        if ("disabled".equals(rights)) {
+            return List.of();
+        }
+        return formats("user_owned".equals(rights) ? "creator" : viewerPlan);
+    }
+
+    static String assetFor(String viewerPlan, String rights, String format) {
+        return assetFor("user_owned".equals(rights) ? "creator" : viewerPlan, format);
+    }
+
     static String assetFor(String plan, String format) {
         if ("wav".equals(format)) {
             return paid(plan) ? "wav" : null;

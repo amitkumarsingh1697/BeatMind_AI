@@ -1,5 +1,6 @@
 package ai.beatmind.generation;
 
+import ai.beatmind.billing.Billing;
 import ai.beatmind.identity.Accounts;
 import ai.beatmind.identity.CurrentUser;
 import ai.beatmind.moderation.ModerationCases;
@@ -63,9 +64,11 @@ class AccountController {
     private final Shares shares;
     private final JdbcClient jdbc;
     private final JsonMapper json;
+    private final Billing billing;
 
     AccountController(Accounts accounts, SongStore songs, AudioStore audio, ProvenanceLedger ledger, Credits credits,
-                      ModerationCases cases, Shares shares, JdbcClient jdbc, JsonMapper json) {
+                      ModerationCases cases, Shares shares, JdbcClient jdbc, JsonMapper json, Billing billing) {
+        this.billing = billing;
         this.accounts = accounts;
         this.songs = songs;
         this.audio = audio;
@@ -132,8 +135,8 @@ class AccountController {
                 take.put("tempoBpm", t.tempoBpm());
                 List<String> paths = new ArrayList<>();
                 if ("ready".equals(t.status()) && !"disabled".equals(s.rightsStatus())) {
-                    for (String format : Entitlements.formats(me.plan())) {
-                        SongStore.Asset a = t.assets().get(Entitlements.assetFor(me.plan(), format));
+                    for (String format : Entitlements.formats(me.plan(), s.rightsStatus())) {
+                        SongStore.Asset a = t.assets().get(Entitlements.assetFor(me.plan(), s.rightsStatus(), format));
                         if (a == null || a.key().isEmpty()) {
                             continue;
                         }
@@ -168,7 +171,14 @@ class AccountController {
                  WHERE s.owner_id = :user AND t.status IN ('actioned', 'appealed', 'restored')
                  ORDER BY t.created_at
                 """).param("user", me.id()).query().listOfRows());
+        data.put("payments", jdbc.sql("""
+                SELECT p.starts_at, p.ends_at, p.plan, p.amount_minor, p.currency, p.payment_method, p.status,
+                       p.reversal_reason, s.billing_country
+                  FROM billing_period p JOIN subscription s ON s.id = p.subscription_id
+                 WHERE p.user_id = :user ORDER BY p.starts_at
+                """).param("user", me.id()).query().listOfRows());
         data.put("notIncluded", List.of(
+                "Card, UPI and bank details: Razorpay holds them, not BeatMind.",
                 "Text our safety check blocked: we keep only a fingerprint of it, not the text.",
                 "Songs you deleted: they leave your library at once and their files are removed after 30 days.",
                 "Security records such as sign-in codes and session tokens: we keep only hashes, briefly."));
@@ -223,6 +233,8 @@ class AccountController {
                 """).param("user", me.id()).update();
         jdbc.sql("DELETE FROM lyric_draft WHERE user_id = :user").param("user", me.id()).update();
         cases.forget(me.id());
+        // Stop any paid plan now, so nothing renews after the account is gone.
+        billing.closeAccount(me.id());
         accounts.close(me.id());
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("deleted", true);

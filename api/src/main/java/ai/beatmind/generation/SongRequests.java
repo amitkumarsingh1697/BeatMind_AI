@@ -1,6 +1,7 @@
 package ai.beatmind.generation;
 
 import ai.beatmind.identity.CurrentUser;
+import ai.beatmind.billing.Billing;
 import ai.beatmind.provenance.ProvenanceLedger;
 import ai.beatmind.provenance.ProvenanceLedger.Actor;
 import java.nio.charset.StandardCharsets;
@@ -90,10 +91,14 @@ class SongRequests {
     private final Entitlements entitlements;
     private final JsonMapper json;
     private final LyricDrafts drafts;
+    private final Billing billing;
+    private final Fallback fallback;
 
     SongRequests(JobQueue queue, SongStore songs, Credits credits, ProvenanceLedger ledger, Entitlements entitlements,
-                 JsonMapper json, LyricDrafts drafts) {
+                 JsonMapper json, LyricDrafts drafts, Billing billing, Fallback fallback) {
         this.drafts = drafts;
+        this.billing = billing;
+        this.fallback = fallback;
         this.queue = queue;
         this.songs = songs;
         this.credits = credits;
@@ -325,15 +330,24 @@ class SongRequests {
         payload.put("instrumental", req.instrumental());
         payload.put("durationSeconds", req.durationSeconds());
         payload.put("takes", Entitlements.TAKES_PER_REQUEST);
-        payload.put("rights", Entitlements.paid(me.plan()) ? "user_owned" : "bm_owned");
+        // US-036: a paid song is owned at once if this period's payment has settled, else vesting.
+        Billing.Ownership ownership = billing.ownershipAtCreation(me.id(), me.plan());
+        payload.put("rights", ownership.rights());
         if (req.beat() != null) {
             payload.put("beat", req.beat().asMap());
         }
+        int priority = "pro".equals(me.plan()) ? 1 : 0;
+        // US-016: paid songs may go to the fallback API when the GPU queue is long.
+        Fallback.Route route = fallback.route(me.plan(), req.language(), priority, Entitlements.TAKES_PER_REQUEST);
+        if (!"self".equals(route.provider())) {
+            payload.put("provider", route.provider());
+        }
         UUID jobId = queue.enqueue(req.beat() != null ? JobQueue.Kind.BEAT : JobQueue.Kind.SONG, json.writeValueAsString(payload),
-                "pro".equals(me.plan()) ? 1 : 0, me.id());
+                priority, me.id(), route.provider(), route.costUsd());
         songs.create(new SongStore.NewSong(songId, me.id(), jobId, req.mode(), req.title(), tag, req.prompt(),
                 req.lyrics(), req.vocalType(), req.instrumental(), req.durationSeconds(), me.plan(), ipHash,
-                req.beat() == null ? null : json.writeValueAsString(req.beat().asMap())));
+                req.beat() == null ? null : json.writeValueAsString(req.beat().asMap()), ownership.rights(),
+                ownership.periodId(), ownership.subscriptionId()));
         credits.debit(me.id(), jobId, songId, Entitlements.CREDITS_PER_REQUEST);
 
         Map<String, Object> settings = new LinkedHashMap<>();
@@ -352,6 +366,10 @@ class SongRequests {
                 "promptCharacters", TextRules.graphemes(req.prompt()),
                 "settings", settings,
                 "planAtCreation", me.plan()));
+        if (route.reason() != null) {
+            ledger.append(songId, "routed_to_fallback", Actor.SYSTEM, Map.of(
+                    "provider", route.provider(), "reason", route.reason(), "estimatedCostUsd", route.costUsd()));
+        }
         if (req.lyrics() != null) {
             recordLyrics(me, songId, req.lyrics(), tag, lyricsDraftId);
         }
