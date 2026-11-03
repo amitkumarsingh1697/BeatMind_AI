@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
-/** API-009 checkout, API-010 webhooks, the billing summary and cancellation. */
+/** API-009 checkout, API-010 webhooks (Razorpay and Paddle), the billing summary and cancellation. */
 @RestController
 class BillingController {
 
@@ -82,6 +82,21 @@ class BillingController {
             return problem(HttpStatus.UNAUTHORIZED, "bad_signature", "Signature does not match.");
         }
         return ResponseEntity.ok(Map.of("outcome", billing.handle(body, eventId)));
+    }
+
+    /**
+     * US-035: Paddle notifications. The Paddle-Signature header carries a timestamp and an
+     * HMAC-SHA256 of "timestamp:raw body"; old timestamps are refused so a captured notification
+     * cannot be replayed.
+     */
+    @PostMapping("/v1/webhooks/paddle")
+    ResponseEntity<?> paddle(@RequestBody byte[] raw,
+                             @RequestHeader(name = "Paddle-Signature", required = false) String signature) {
+        String body = new String(raw, StandardCharsets.UTF_8);
+        if (!billing.paddleSignatureValid(body, signature)) {
+            return problem(HttpStatus.UNAUTHORIZED, "bad_signature", "Signature does not match.");
+        }
+        return ResponseEntity.ok(Map.of("outcome", billing.handlePaddle(body)));
     }
 
     static ResponseEntity<ProblemDetail> problem(HttpStatus status, String code, String detail) {

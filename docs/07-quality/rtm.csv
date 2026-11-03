@@ -20,8 +20,9 @@ REQ-F-21,FEAT-09,TC-REQ-F-21-01,Sixth commercial licence in a calendar month is 
 REQ-F-21,FEAT-09,TC-REQ-F-21-02,Counter resets at month boundary in user's billing time zone,Unit,JUnit 5,Yes,G2,Written
 REQ-F-22,FEAT-09,TC-REQ-F-22-01,Paid-plan song created with user_owned state and certificate wording approved by counsel,Integration,JUnit 5,Yes,G3,Written
 REQ-F-23,FEAT-07,TC-REQ-F-23-01,Paid user downloads WAV 48 kHz 24-bit and MP3 320,Integration,JUnit 5,Yes,G2,Written
-REQ-F-23,FEAT-07,TC-REQ-F-23-02,Four stems produced and sum to mix within tolerance,Model eval,pytest,Yes,G2,Not written
-REQ-F-23,FEAT-07,TC-REQ-F-23-03,Stem separation quality (SDR) reported on test set,Model eval,pytest,Yes,G2,Not written
+REQ-F-23,FEAT-07,TC-REQ-F-23-02,Four stems produced and sum to mix within tolerance,Model eval,pytest,Yes,G2,Written
+REQ-F-23,FEAT-07,TC-REQ-F-23-03,Stem separation quality (SDR) reported on test set,Model eval,pytest,Yes,G2,Written
+REQ-F-23,FEAT-07,TC-REQ-F-23-04,Paid user requests four stems of a take and downloads each through a signed link,Integration,JUnit 5,Yes,G2,Written
 REQ-F-24,FEAT-09,TC-REQ-F-24-01,Free song conversion rule applied (after Batch 4 rule),Unit,JUnit 5,Yes,G3,Not written
 REQ-F-25,FEAT-09,TC-REQ-F-25-01,Cancelling does not change rights_status of existing songs,Unit,JUnit 5,Yes,G2,Not written
 REQ-F-26,FEAT-09,TC-REQ-F-26-01,Copy check: no string promises copyright protection or claim-free use,Static,Copy lint script,Yes,G2,Written
@@ -33,6 +34,7 @@ REQ-F-33,FEAT-10,TC-REQ-F-33-01,"AI-generated label visible on song page, embed 
 REQ-F-40,FEAT-08,TC-REQ-F-40-01,Price shown in local currency for each band country,Unit,JUnit 5,Yes,G3,Written
 REQ-F-41,FEAT-08,TC-REQ-F-41-01,Billing country of payment method overrides browsing country,Integration,JUnit 5,Yes,G3,Written
 REQ-F-42,FEAT-08,TC-REQ-F-42-01,"UPI, card and net banking checkout in Razorpay test mode",Integration,JUnit 5 + provider sandbox,Yes,G3,Written
+REQ-F-42,FEAT-08,TC-REQ-F-42-02,Card checkout outside India through the merchant of record with verified webhooks,Integration,JUnit 5 + provider sandbox,Yes,G3,Written
 REQ-F-43,FEAT-08,TC-REQ-F-43-01,Cancellation completes in three steps or fewer,E2E,Playwright,Yes,G3,Not written
 REQ-F-50,FEAT-14,TC-REQ-F-50-01,"Artist names in Latin, Devanagari and romanised Hindi blocked",Unit,JUnit 5,Yes,G2,Written
 REQ-F-50,FEAT-14,TC-REQ-F-50-03,Title and lyrics screened again before a share link is made,Integration,JUnit 5,Yes,G2,Written

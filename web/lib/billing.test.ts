@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkoutResult, liveSubscription, TEST_OUTCOMES, type BillingSummary } from "./billing.ts";
+import { checkoutResult, liveSubscription, PADDLE_TEST_OUTCOMES, TEST_OUTCOMES, testOutcomes, type BillingSummary } from "./billing.ts";
 
 const base: BillingSummary = { plan: "free", billingCountry: "IN", mode: "stub", keyId: null, subscription: null, periods: [] };
 const sub = (status: string) =>
@@ -21,5 +21,10 @@ test("stub checkout outcomes map to what the person is told", () => {
 
 test("every test outcome is one the API simulates", () => {
   const api = ["charged", "foreign_card", "renew", "pending", "halted", "dispute_lost", "refund"];
-  for (const { outcome } of Object.values(TEST_OUTCOMES)) assert.ok(api.includes(outcome));
+  for (const { outcome } of [...Object.values(TEST_OUTCOMES), ...Object.values(PADDLE_TEST_OUTCOMES)]) assert.ok(api.includes(outcome));
+});
+
+test("outside India the test payment has no UPI", () => {
+  assert.ok(Object.values(testOutcomes("paddle")).every((o) => o.method === "card"));
+  assert.ok(Object.values(testOutcomes("razorpay")).some((o) => o.method === "upi"));
 });

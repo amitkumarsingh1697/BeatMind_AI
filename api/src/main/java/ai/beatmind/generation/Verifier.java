@@ -88,7 +88,9 @@ class Verifier {
                 SELECT song_id FROM (
                     SELECT t.song_id FROM take t, jsonb_each(t.assets) a WHERE a.value->>'sha256' = :sha
                     UNION ALL
-                    SELECT v.song_id FROM take_version v, jsonb_each(v.assets) a WHERE a.value->>'sha256' = :sha) m
+                    SELECT v.song_id FROM take_version v, jsonb_each(v.assets) a WHERE a.value->>'sha256' = :sha
+                    UNION ALL
+                    SELECT st.song_id FROM take_stems st, jsonb_each(st.assets) a WHERE a.value->>'sha256' = :sha) m
                 LIMIT 1
                 """).param("sha", sha).query(UUID.class).optional();
         if (song.isPresent()) {

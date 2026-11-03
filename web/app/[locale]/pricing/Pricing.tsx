@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import RequireAccount from "@/components/Account";
-import { checkoutResult, liveSubscription, openRazorpay, TEST_OUTCOMES, type BillingSummary, type CheckoutStart } from "@/lib/billing";
+import { checkoutResult, liveSubscription, openPaddle, openRazorpay, testOutcomes, type BillingSummary, type CheckoutStart } from "@/lib/billing";
 import { problem } from "@/lib/format";
 import { appText, errorText } from "@/lib/i18n";
 import type { Locale } from "@/lib/messages";
@@ -24,8 +24,8 @@ function storedVariant(): "A" | "B" {
 /**
  * Plans by billing country (US-033): the person confirms the country of their billing address and
  * the price follows it, not where they browse from. Choosing a plan starts a Razorpay subscription
- * (US-034); on a server without Razorpay keys a test dialog plays the payment through the real
- * webhook handler instead.
+ * in India (US-034) or a Paddle checkout everywhere else (US-035); on a server without provider
+ * keys a test dialog plays the payment through the real webhook handler instead.
  */
 export default function Pricing({ locale }: { locale: Locale }) {
   const t = appText(locale);
@@ -102,10 +102,10 @@ export default function Pricing({ locale }: { locale: Locale }) {
       </div>
 
       <div className="plans" aria-live="polite">
-        <div className="plan stack">
+        <div className="plan stack" style={{ alignContent: "start" }}>
           <h2 style={{ margin: 0, fontSize: "var(--step-1)" }}>{B.free}</h2>
           <p className="amount">
-            {B.freePrice} <span>{B.perMonth}</span>
+            {quote?.currency ? formatPrice(0, quote.currency, locale) : B.freePrice} <span>{B.perMonth}</span>
           </p>
           <ul className="small" style={{ margin: 0, paddingInlineStart: "1.2em" }}>
             {B.features.free.map((f) => (
@@ -117,7 +117,7 @@ export default function Pricing({ locale }: { locale: Locale }) {
         {(["creator", "pro"] as const).map((plan) => {
           const price = quote?.plans.find((p) => p.plan === plan);
           return (
-            <div className="plan stack" key={plan}>
+            <div className="plan stack" key={plan} style={{ alignContent: "start" }}>
               <h2 style={{ margin: 0, fontSize: "var(--step-1)" }}>{t.plans[plan]}</h2>
               {quote && price && quote.currency ? (
                 <>
@@ -142,7 +142,7 @@ export default function Pricing({ locale }: { locale: Locale }) {
                 <button
                   type="button"
                   className={plan === "creator" ? "btn btn-primary" : "btn btn-secondary"}
-                  disabled={!quote || country !== "IN" || !!live}
+                  disabled={!quote?.paidPlansAvailable || !!live}
                   aria-pressed={chosen === plan}
                   onClick={() => setChosen(plan)}
                 >
@@ -154,16 +154,16 @@ export default function Pricing({ locale }: { locale: Locale }) {
         })}
       </div>
 
-      {country && country !== "IN" && (
+      {quote && !quote.paidPlansAvailable && (
         <div className="notice" role="status">
           {B.internationalSoon}
         </div>
       )}
       <p className="small muted" style={{ margin: 0 }}>
-        {B.payNote} {B.ownershipNote}
+        {country === "IN" ? B.payNote : B.paddleNote} {B.ownershipNote}
       </p>
 
-      {chosen && country === "IN" && (
+      {chosen && country && quote?.paidPlansAvailable && (
         <RequireAccount locale={locale}>
           {(account) => (
             <Checkout
@@ -201,7 +201,7 @@ function Checkout({
   const B = t.billing;
   const dialog = useRef<HTMLDialogElement>(null);
   const [start, setStart] = useState<CheckoutStart | null>(null);
-  const [outcome, setOutcome] = useState("charged");
+  const [outcome, setOutcome] = useState(country === "IN" ? "charged" : "card");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState("");
@@ -220,6 +220,17 @@ function Checkout({
     const s: CheckoutStart = await r.json();
     setStart(s);
     if (s.mode === "stub") return dialog.current?.showModal();
+    if (s.provider === "paddle") {
+      try {
+        await openPaddle(s, me.email, locale, () => {
+          setResult(B.pendingPaid);
+          onDone();
+        });
+      } catch {
+        setError(t.errors.not_available);
+      }
+      return;
+    }
     try {
       await openRazorpay({
         key: s.keyId ?? "",
@@ -244,7 +255,7 @@ function Checkout({
     const r = await fetch("/v1/billing/simulate", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(TEST_OUTCOMES[outcome]),
+      body: JSON.stringify(testOutcomes(start?.provider ?? "razorpay")[outcome]),
     });
     setBusy(false);
     if (!r.ok) return setError(errorText(locale, await problem(r)));
@@ -262,7 +273,7 @@ function Checkout({
         {start && ` · ${formatPrice(start.monthly, start.currency, locale)} ${B.perMonth}`}
       </h2>
       <p className="small" style={{ margin: 0 }}>
-        {B.payNote}
+        {country === "IN" ? B.payNote : B.paddleNote}
       </p>
       {!result && (
         <div>
@@ -287,7 +298,7 @@ function Checkout({
           <p className="small">{B.testIntro}</p>
           <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="field-label">{B.pay}</legend>
-            {Object.keys(TEST_OUTCOMES).map((key) => (
+            {Object.keys(testOutcomes(start?.provider ?? "razorpay")).map((key) => (
               <label key={key} className="cluster" style={{ minBlockSize: "var(--tap)" }}>
                 <input type="radio" name="test-outcome" value={key} checked={outcome === key} onChange={() => setOutcome(key)} />
                 {B.testOutcomes[key]}

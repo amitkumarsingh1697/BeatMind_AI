@@ -285,14 +285,30 @@ class Edits {
                 });
     }
 
+    /** The unwatermarked render of a take's current version, which stems are separated from (US-039). */
+    record Source(int version, String rawKey) {}
+
+    Optional<Source> currentSource(SongStore.Song song, SongStore.Take take) {
+        ensureOriginal(song, take);
+        return rows(song.id(), take.index()).stream()
+                .filter(r -> r.version() == take.version() && "ready".equals(r.status()) && r.rawKey() != null)
+                .findFirst().map(r -> new Source(r.version(), r.rawKey()));
+    }
+
     /** Version 1 is the take as generated; it is recorded the first time the take is edited. */
-    private void ensureOriginal(SongStore.Song song, SongStore.Take take) {
+    void ensureOriginal(SongStore.Song song, SongStore.Take take) {
         String raw = null;
+        double duration = song.durationSeconds();
         if (song.jobId() != null) {
             String result = jdbc.sql("SELECT result::text FROM generation_job WHERE id = :id").param("id", song.jobId())
                     .query(String.class).optional().orElse(null);
             if (result != null) {
-                raw = json.readTree(result).path("takes").path(take.index() - 1).path("key").asString(null);
+                JsonNode t = json.readTree(result).path("takes").path(take.index() - 1);
+                raw = t.path("key").asString(null);
+                // The length the finisher measured, not the length that was asked for.
+                if (t.path("durationSeconds").isNumber()) {
+                    duration = t.path("durationSeconds").asDouble();
+                }
             }
         }
         jdbc.sql("""
@@ -301,7 +317,7 @@ class Edits {
                   FROM take t WHERE t.song_id = :song AND t.idx = :idx
                 ON CONFLICT (song_id, take_idx, version) DO NOTHING
                 """).param("id", UUID.randomUUID()).param("song", song.id()).param("idx", take.index()).param("raw", raw)
-                .param("duration", BigDecimal.valueOf(song.durationSeconds())).update();
+                .param("duration", BigDecimal.valueOf(duration)).update();
     }
 
     private List<Row> rows(UUID songId, int takeIndex) {

@@ -42,7 +42,7 @@ class SecurityConfig {
                         .requestMatchers("/v1/pricing", "/v1/waitlist", "/v1/waitlist/visits").permitAll()
                         .requestMatchers("/v1/auth/**").permitAll()
                         // Signed links (US-026): the signature is the permission, valid 15 minutes.
-                        .requestMatchers(HttpMethod.GET, "/v1/downloads/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/downloads/*", "/v1/downloads/stems/*").permitAll()
                         // Certificates are public by id (API-012); they show no personal data.
                         .requestMatchers(HttpMethod.GET, "/v1/certificates/*").permitAll()
                         // Reports (API-013): rights holders and authorities need no account (US-032).
@@ -50,7 +50,7 @@ class SecurityConfig {
                         // Share links (US-024): the token is the permission; revocable.
                         .requestMatchers(HttpMethod.GET, "/v1/shared/*", "/v1/shared/*/audio").permitAll()
                         // Payment webhooks (API-010): the HMAC signature is the permission (REQ-SEC-08).
-                        .requestMatchers(HttpMethod.POST, "/v1/webhooks/razorpay").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/v1/webhooks/razorpay", "/v1/webhooks/paddle").permitAll()
                         // Verify page (API-011, US-021): anyone, rate-limited, coarse answers only.
                         .requestMatchers(HttpMethod.POST, "/v1/verify").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/verify/*").permitAll()

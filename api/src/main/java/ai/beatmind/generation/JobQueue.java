@@ -8,7 +8,7 @@ import java.util.UUID;
  */
 public interface JobQueue {
 
-    enum Kind { SONG, BEAT, LYRICS, EDIT, VERIFY }
+    enum Kind { SONG, BEAT, LYRICS, EDIT, VERIFY, STEMS }
 
     /** Queues a job with no owner (system jobs) and returns its id. */
     default UUID enqueue(Kind kind, String payloadJson, int priority) {
