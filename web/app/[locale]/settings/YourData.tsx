@@ -7,6 +7,7 @@ import { problem } from "@/lib/format";
 import { appText, errorText } from "@/lib/i18n";
 import type { Locale } from "@/lib/messages";
 import type { Me } from "@/lib/session";
+import PlanPanel from "./PlanPanel";
 
 export default function YourData({ locale }: { locale: Locale }) {
   return <RequireAccount locale={locale}>{(me) => <Panels me={me} locale={locale} />}</RequireAccount>;
@@ -60,6 +61,7 @@ function Panels({ me, locale }: { me: Me; locale: Locale }) {
         <h1>{S.heading}</h1>
         <p>{S.intro}</p>
       </header>
+      <PlanPanel locale={locale} />
       <section className="card flat stack" aria-labelledby="export-heading">
         <h2 id="export-heading" style={{ margin: 0 }}>
           {S.exportHeading}

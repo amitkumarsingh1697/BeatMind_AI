@@ -11,8 +11,17 @@ import type { Locale } from "@/lib/messages";
 import type { Me } from "@/lib/session";
 import Blocked from "@/components/Blocked";
 import { DeleteDialog, RenameDialog } from "../../library/Library";
+import EditPanel from "./EditPanel";
 
-type Take = { index: number; status: "ready" | "withheld" | "failed"; audioUrl: string | null; format: string | null; tempoBpm: number | null };
+type Take = {
+  index: number;
+  status: "ready" | "withheld" | "failed";
+  audioUrl: string | null;
+  format: string | null;
+  tempoBpm: number | null;
+  /** The current version after edits (US-038); in the audio URL so the browser does not replay a cached file. */
+  version: number;
+};
 type Beat = { genre: string; bpm: number; key: string; include: string[]; exclude: string[] };
 type Takedown = {
   id: string;
@@ -143,8 +152,14 @@ function SongView({ me, locale, id }: { me: Me; locale: Locale; id: string }) {
             {song.rightsStatus === "disabled" ? (
               <span className="badge badge-danger">{S.removedBadge}</span>
             ) : (
-              <span className={song.rightsStatus === "bm_owned" ? "badge" : "badge badge-success"}>
-                {song.rightsStatus === "user_owned" ? S.youOwn : song.rightsStatus === "free_licensed" ? S.licensed : S.personal}
+              <span className={song.rightsStatus === "bm_owned" || song.rightsStatus === "vesting" ? "badge" : "badge badge-success"}>
+                {song.rightsStatus === "user_owned"
+                  ? S.youOwn
+                  : song.rightsStatus === "vesting"
+                    ? S.pending
+                    : song.rightsStatus === "free_licensed"
+                      ? S.licensed
+                      : S.personal}
               </span>
             )}
           </div>
@@ -184,7 +199,7 @@ function SongView({ me, locale, id }: { me: Me; locale: Locale; id: string }) {
             </div>
           </div>
           {current?.audioUrl && (
-            <Player src={current.audioUrl} title={song.title} takeLabel={S.take(current.index)} durationHint={song.durationSeconds} locale={locale} />
+            <Player key={current.version} src={current.version > 1 ? `${current.audioUrl}?v=${current.version}` : current.audioUrl} title={song.title} takeLabel={S.take(current.index)} durationHint={song.durationSeconds} locale={locale} />
           )}
           {current?.tempoBpm != null && <p className="small muted" style={{ margin: 0 }}>{t.create.tempo(Math.round(current.tempoBpm))}</p>}
           {song.takes
@@ -193,6 +208,18 @@ function SongView({ me, locale, id }: { me: Me; locale: Locale; id: string }) {
               <TakeAppeal key={tk.index} songId={song.id} index={tk.index} t={t} locale={locale} />
             ))}
         </section>
+      )}
+
+      {song.status === "succeeded" && current?.audioUrl && current.status === "ready" && song.rightsStatus !== "disabled" && (
+        <EditPanel
+          key={current.index}
+          songId={song.id}
+          take={current.index}
+          duration={song.durationSeconds}
+          title={song.title}
+          locale={locale}
+          onChange={load}
+        />
       )}
 
       <div className="grid-2">

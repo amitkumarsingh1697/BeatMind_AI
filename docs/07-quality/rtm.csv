@@ -12,9 +12,9 @@ REQ-F-06,FEAT-02,TC-REQ-F-06-01,Lengths 30 s and 4 min produced within ±5 s,Mod
 REQ-F-07,FEAT-16,TC-REQ-F-07-01,Language not passed G1 is hidden or marked experimental,Integration,JUnit 5,Yes,G2,Written
 REQ-F-08,FEAT-16,TC-REQ-F-08-01,Text stored NFC; grapheme counting; transliteration and language tag stored,Unit,JUnit 5,Yes,G2,Written
 REQ-F-08,FEAT-16,TC-REQ-F-08-02,Certificate PDF renders Devanagari correctly,Integration,JUnit 5 + PDF text extraction,Yes,G2,Not written
-REQ-F-10,FEAT-06,TC-REQ-F-10-01,"Extend, trim, fade and section regenerate create new versions",Integration,JUnit 5,Yes,G2,Not written
-REQ-F-10,FEAT-06,TC-REQ-F-10-02,Seam test: no onset or spectral discontinuity above threshold at edit boundaries,Model eval,pytest,Yes,G2,Not written
-REQ-F-11,FEAT-06,TC-REQ-F-11-01,Compare and restore earlier version,E2E,Playwright,Yes,G2,Not written
+REQ-F-10,FEAT-06,TC-REQ-F-10-01,"Extend, trim, fade and section regenerate create new versions",Integration,JUnit 5,Yes,G2,Written
+REQ-F-10,FEAT-06,TC-REQ-F-10-02,Seam test: no onset or spectral discontinuity above threshold at edit boundaries,Model eval,pytest,Yes,G2,Written
+REQ-F-11,FEAT-06,TC-REQ-F-11-01,Compare and restore earlier version,E2E,Playwright,Yes,G2,Written
 REQ-F-20,FEAT-07,TC-REQ-F-20-01,Free MP3 192 kbps download carries attribution metadata,Integration,JUnit 5,Yes,G2,Written
 REQ-F-21,FEAT-09,TC-REQ-F-21-01,Sixth commercial licence in a calendar month is refused,Unit,JUnit 5,Yes,G2,Written
 REQ-F-21,FEAT-09,TC-REQ-F-21-02,Counter resets at month boundary in user's billing time zone,Unit,JUnit 5,Yes,G2,Written
@@ -28,11 +28,11 @@ REQ-F-26,FEAT-09,TC-REQ-F-26-01,Copy check: no string promises copyright protect
 REQ-F-30,FEAT-10,TC-REQ-F-30-01,"Exported files carry AI label metadata, valid C2PA manifest and detectable watermark",Integration,pytest + c2patool,Yes,G2,Written
 REQ-F-31,FEAT-10,TC-REQ-F-31-01,"Every generation, edit and export appends a ledger event; chain verifies",Unit,JUnit 5,Yes,G2,Written
 REQ-F-31,FEAT-10,TC-REQ-F-31-02,Tampered event breaks chain verification,Unit,JUnit 5,Yes,G2,Written
-REQ-F-32,FEAT-10,TC-REQ-F-32-01,Verify page identifies BeatMind file and reports coarse answer to anonymous users,E2E,Playwright,Yes,G2,Not written
+REQ-F-32,FEAT-10,TC-REQ-F-32-01,Verify page identifies BeatMind file and reports coarse answer to anonymous users,E2E,Playwright,Yes,G2,Written
 REQ-F-33,FEAT-10,TC-REQ-F-33-01,"AI-generated label visible on song page, embed and download dialog",E2E,Playwright,Yes,G2,Not written
 REQ-F-40,FEAT-08,TC-REQ-F-40-01,Price shown in local currency for each band country,Unit,JUnit 5,Yes,G3,Written
-REQ-F-41,FEAT-08,TC-REQ-F-41-01,Billing country of payment method overrides browsing country,Integration,JUnit 5,Yes,G3,Not written
-REQ-F-42,FEAT-08,TC-REQ-F-42-01,"UPI, card and net banking checkout in Razorpay test mode",Integration,JUnit 5 + provider sandbox,Yes,G3,Not written
+REQ-F-41,FEAT-08,TC-REQ-F-41-01,Billing country of payment method overrides browsing country,Integration,JUnit 5,Yes,G3,Written
+REQ-F-42,FEAT-08,TC-REQ-F-42-01,"UPI, card and net banking checkout in Razorpay test mode",Integration,JUnit 5 + provider sandbox,Yes,G3,Written
 REQ-F-43,FEAT-08,TC-REQ-F-43-01,Cancellation completes in three steps or fewer,E2E,Playwright,Yes,G3,Not written
 REQ-F-50,FEAT-14,TC-REQ-F-50-01,"Artist names in Latin, Devanagari and romanised Hindi blocked",Unit,JUnit 5,Yes,G2,Written
 REQ-F-50,FEAT-14,TC-REQ-F-50-03,Title and lyrics screened again before a share link is made,Integration,JUnit 5,Yes,G2,Written
@@ -43,8 +43,8 @@ REQ-F-53,FEAT-15,TC-REQ-F-53-01,Under-18 date of birth blocks sign-up,Unit,JUnit
 REQ-F-54,FEAT-18,TC-REQ-F-54-01,Takedown disables song and notifies user; 3-hour order path works end to end,E2E,Playwright,Yes,G2,Written
 REQ-F-55,FEAT-17,TC-REQ-F-55-01,Daily cap and concurrency limit enforced per plan,Integration,JUnit 5,Yes,G2,Written
 REQ-F-56,FEAT-08,TC-REQ-F-56-01,"Failed, timed-out and withheld takes refund credits with ledger entry",Integration,JUnit 5,Yes,G2,Written
-REQ-F-57,FEAT-09,TC-REQ-F-57-01,Chargeback webhook reverts rights of songs from the disputed period,Integration,JUnit 5,Yes,G3,Not written
-REQ-F-58,FEAT-09,TC-REQ-F-58-01,Cancelled user can still download owned songs,Integration,JUnit 5,Yes,G3,Not written
+REQ-F-57,FEAT-09,TC-REQ-F-57-01,Chargeback webhook reverts rights of songs from the disputed period,Integration,JUnit 5,Yes,G3,Written
+REQ-F-58,FEAT-09,TC-REQ-F-58-01,Cancelled user can still download owned songs,Integration,JUnit 5,Yes,G3,Written
 REQ-F-59,FEAT-18,TC-REQ-F-59-01,Appeal creates review case visible in admin queue,E2E,Playwright,Yes,G2,Written
 REQ-F-59,FEAT-18,TC-REQ-F-59-02,Owner appeals a takedown and a person restores or upholds it within 72 hours,Integration,JUnit 5,Yes,G2,Written
 REQ-NFR-01,,TC-REQ-NFR-01-01,Latency SLO measured under load profile,Performance,k6,Yes,G2,Not written

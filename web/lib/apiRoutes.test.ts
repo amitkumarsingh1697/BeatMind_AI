@@ -83,3 +83,27 @@ test("refuses Sprint 4 lookalikes", () => {
   assert.ok(!isAllowed("GET", "shared/AbCdEfGhIjKlMnOpQrStUvWxYz012345/../../me"));
   assert.ok(!isAllowed("POST", `admin/takedowns/${ID}/delete`));
 });
+
+test("forwards the Sprint 5 calls", () => {
+  assert.ok(isAllowed("GET", "billing"));
+  assert.ok(isAllowed("POST", "checkout"));
+  assert.ok(isAllowed("POST", "billing/cancel"));
+  assert.ok(isAllowed("POST", "billing/simulate"));
+  assert.ok(isAllowed("POST", "webhooks/razorpay"));
+  assert.ok(isAllowed("POST", `songs/${ID}/edits`));
+  assert.ok(isAllowed("GET", `songs/${ID}/takes/1/versions`));
+  assert.ok(isAllowed("GET", `songs/${ID}/takes/1/versions/3/audio`));
+  assert.ok(isAllowed("POST", `songs/${ID}/takes/2/versions/1/restore`));
+  assert.ok(isAllowed("POST", "verify"));
+  assert.ok(isAllowed("GET", `verify/${ID}`));
+  assert.ok(isAllowed("GET", "admin/fallback"));
+});
+
+test("refuses Sprint 5 lookalikes", () => {
+  assert.ok(!isAllowed("GET", "checkout"));
+  assert.ok(!isAllowed("POST", "billing/refund"));
+  assert.ok(!isAllowed("GET", "webhooks/razorpay"));
+  assert.ok(!isAllowed("GET", "verify/not-a-uuid"));
+  assert.ok(!isAllowed("DELETE", `songs/${ID}/takes/1/versions/2`));
+  assert.ok(!isAllowed("GET", `songs/${ID}/takes/1/versions/0/audio`));
+});

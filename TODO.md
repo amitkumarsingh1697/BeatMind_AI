@@ -174,9 +174,44 @@ developer**.
 - [ ] **ACE-Step beat settings** (Any developer, rented GPU): check that `bpm` and `key_scale` reach
       the model and that measured tempos land within tolerance on real takes; add a key check.
 
-## Sprint 5 and 6: payments
+## Sprint 5: payments, ownership, editor, verify (code runs locally; these steps make it real)
 
-- [ ] Founder: register the Indian company and open the Razorpay account (Q-F01), then add the
-      Razorpay keys as secrets (US-034).
+Locally, payments run in **stub mode** (`BEATMIND_BILLING_MODE=stub`, the default): checkout opens a
+test dialog that plays the Razorpay events through the real, signed webhook handler.
+
+- [ ] **Razorpay account** (Founder): register the Indian company and open the Razorpay account
+      (Q-F01). Turn off international cards on the account until US-035 is live.
+- [ ] **Razorpay plans and keys** (Any developer, after the account): create one monthly plan per
+      plan and price variant (creator-A, creator-B, pro-A, pro-B) at the prices in
+      `api/src/main/java/ai/beatmind/pricing/PricingService.java`, and set `RAZORPAY_PLANS="creator-A=plan_..,creator-B=plan_..,pro-A=plan_..,pro-B=plan_.."`,
+      `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` as secrets. Use `BEATMIND_BILLING_MODE=test` in
+      staging and `live` in production.
+- [ ] **Razorpay webhook** (Any developer): in the dashboard, point a webhook at
+      `https://<host>/v1/webhooks/razorpay` with the events `subscription.authenticated`,
+      `subscription.activated`, `subscription.charged`, `subscription.pending`,
+      `subscription.halted`, `subscription.cancelled`, `subscription.completed`,
+      `payment.dispute.lost` and `refund.processed`; set its secret as `RAZORPAY_WEBHOOK_SECRET`.
+      Then run TC-REQ-F-42-01 by hand in test mode: pay by UPI, card and net banking.
+- [ ] **Counsel review** (Founder): the ownership, vesting and chargeback text (`billing` and
+      `rights.vesting` in `web/lib/i18n.ts`), the cancel flow, and the verify page answers
+      (`verify`). Confirm that songs going back to BeatMind after a chargeback matches the terms.
+- [ ] **Lyria fallback** (Any developer): confirm the current Lyria model and its Vertex AI endpoint,
+      price per take and terms for commercial use (ADR-007), then set `LYRIA_ENDPOINT` and
+      `LYRIA_TOKEN` (a service-account token) for a worker run with `BEATMIND_PROVIDERS=lyria
+      BEATMIND_RUNNER=lyria`, and turn routing on with `BEATMIND_FALLBACK_ENABLED=true`. Keep the
+      daily cap (`beatmind.fallback.daily-cap-usd`, US$10) and alert on
+      `beatmind.fallback.capped`. Watch spend at `/v1/admin/fallback`.
+- [ ] **ACE-Step edits** (Any developer, rented GPU): extend and regenerate use the stub renderer and
+      crossfades locally. Wire them to ACE-Step's repaint and extend modes, then run the seam test
+      (TC-REQ-F-10-02) on real takes and adjust `SEAM_LIMIT` if needed.
+- [ ] **Turnstile on verify** (Any developer): the verify page uses the same site key as the report
+      form; check it in staging, and the 20 checks an hour per network limit.
+- [ ] **Native Hindi review** (Founder): the Sprint 5 text in `web/lib/i18n.ts` (`billing`,
+      `editor`, `verify`, new history events and errors).
+- [ ] **Plan allowances** (Founder): the plan cards say 600 and 2,000 credits a month, from the
+      placeholder allowances in `application.yml`; change both together when pricing is final.
+
+## Sprint 6: international payments
+
 - [ ] Founder: sign up with a merchant of record for international payments (US-035).
 - [ ] Founder: have counsel review the terms and the certificate wording before paid launch.

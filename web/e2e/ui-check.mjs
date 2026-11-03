@@ -1,4 +1,4 @@
-// Walks the app screens (Sprints 2 to 4, English and Hindi) in a real browser against a running local stack, runs axe-core on
+// Walks the app screens (Sprints 2 to 5, English and Hindi) in a real browser against a running local stack, runs axe-core on
 // each (TC-REQ-NFR-08-01: no serious or critical violations) and saves screenshots.
 //
 //   node e2e/ui-check.mjs [base-url] [screenshot-dir]
@@ -147,6 +147,7 @@ for (const scheme of ["dark", "light"]) {
   await page.getByRole("link", { name: "View certificate" }).click();
   await page.getByRole("heading", { name: "Song licence and rights certificate" }).waitFor();
   await shot(page, `08c-certificate${suffix}`);
+  const certificateId = decodeURIComponent(page.url().split("/certificates/")[1] ?? "");
   await audit(page, `certificate (${scheme})`);
   await page.goBack();
 
@@ -196,6 +197,76 @@ for (const scheme of ["dark", "light"]) {
   await page.getByText(/Measured tempo 12\d BPM/).waitFor();
   await shot(page, `07a-beat-song${suffix}`);
   await audit(page, `beat song page (${scheme})`);
+
+  // Sprint 5: plans by billing country and a test payment (US-033, US-034), a song owned on the
+  // paid plan (US-036), the editor (US-038), the three-step cancel (US-037) and verify (US-021).
+  await page.goto(`${BASE}/en/pricing`);
+  await page.getByRole("heading", { name: "Choose a plan" }).waitFor();
+  await page.getByLabel("Billing country").selectOption("IN");
+  await page.getByText("including GST").first().waitFor();
+  await shot(page, `19-pricing${suffix}`);
+  await audit(page, `pricing (${scheme})`);
+  await page.getByRole("button", { name: "Choose Creator" }).click();
+  await page.getByRole("button", { name: "Pay", exact: true }).click();
+  const testPay = page.getByRole("dialog");
+  await testPay.getByRole("heading", { name: "Test payment" }).waitFor();
+  await testPay.getByRole("radio", { name: "Pay by UPI (succeeds)" }).check();
+  await shot(page, `19a-test-payment${suffix}`, { fullPage: false });
+  await audit(page, `test payment dialog (${scheme})`);
+  await testPay.getByRole("button", { name: "Pay", exact: true }).click();
+  await page.getByText("You are on Creator. Thank you.").waitFor();
+  await shot(page, `19b-paid${suffix}`);
+
+  await page.goto(`${BASE}/en/create`);
+  await page.getByRole("radio", { name: "Make a beat" }).check();
+  await page.getByLabel("Genre").selectOption("bhangra");
+  await page.getByLabel("Tempo (BPM)").fill("100");
+  await page.getByRole("button", { name: /Make two takes/ }).click();
+  await page.locator("li", { hasText: "Bhangra beat, 100 BPM" }).getByText("Your takes are ready.").waitFor({ timeout: 30000 });
+  await page.getByRole("link", { name: "Bhangra beat, 100 BPM" }).first().click();
+  await page.getByText("You own this song", { exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Edit this take" }).waitFor();
+  await page.getByRole("radio", { name: "Fade in or out" }).check();
+  await page.getByRole("button", { name: "Make new version" }).click();
+  await page.locator("li", { hasText: "Version 2" }).getByText("Ready").waitFor({ timeout: 30000 });
+  await page.getByRole("radio", { name: "Extend the end" }).check();
+  await page.getByLabel("Seconds to add").fill("10");
+  await page.getByRole("button", { name: "Make new version" }).click();
+  await page.locator("li", { hasText: "Version 3" }).getByText(/^Ready/).waitFor({ timeout: 30000 });
+  await page.locator("li", { hasText: "Version 3" }).getByText("Seams checked: no clicks or jumps").waitFor();
+  await shot(page, `20-editor${suffix}`);
+  await audit(page, `editor (${scheme})`);
+  await page.locator("li", { hasText: "Version 2" }).getByRole("button", { name: "Use this version" }).click();
+  await page.locator("li", { hasText: "Version 2" }).getByText("current").waitFor();
+
+  await page.goto(`${BASE}/en/settings`);
+  await page.getByRole("heading", { name: "Your plan" }).waitFor();
+  await page.getByText(/^Renews on/).waitFor();
+  await page.getByRole("button", { name: "Cancel plan" }).click();
+  await page.getByRole("radio", { name: "I made what I needed" }).check();
+  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByRole("heading", { name: "What happens when you cancel" }).waitFor();
+  await shot(page, `21-cancel-step${suffix}`);
+  await audit(page, `cancel plan (${scheme})`);
+  await page.getByRole("button", { name: "Cancel my plan" }).click();
+  await page.getByText(/^Your plan is cancelled/).waitFor();
+  await shot(page, `21a-cancelled${suffix}`);
+
+  const checker = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: scheme });
+  const c = await checker.newPage();
+  await c.goto(`${BASE}/en/verify`);
+  await c.getByRole("heading", { name: "Was this song made with BeatMind?" }).waitFor();
+  await c.getByLabel("Certificate ID").fill(certificateId);
+  await c.getByRole("button", { name: "Check" }).first().click();
+  await c.getByRole("heading", { name: "Made with BeatMind AI" }).waitFor();
+  await c.getByText("Certificate valid").waitFor();
+  await shot(c, `22-verify-certificate${suffix}`);
+  await audit(c, `verify page (${scheme})`);
+  await c.getByLabel(/Audio file/).setInputFiles({ name: "clip.wav", mimeType: "audio/wav", buffer: Buffer.alloc(4096, 7) });
+  await c.getByRole("button", { name: "Check" }).nth(1).click();
+  await c.getByRole("heading", { name: /Not found|Could not read the file/ }).waitFor({ timeout: 30000 });
+  await shot(c, `22a-verify-file${suffix}`);
+  await checker.close();
 
   // Your data (US-011): export link and the delete dialog (not confirmed here).
   await page.goto(`${BASE}/en/settings`);
@@ -251,6 +322,19 @@ for (const scheme of ["dark", "light"]) {
     await p.getByRole("link", { name: "रात का सफ़र" }).waitFor();
     await shot(p, "15-phone-library-hi");
     await audit(p, "library (Hindi, phone)");
+    for (const [path, heading, name] of [
+      ["pricing", "प्लान चुनें", "19c-phone-pricing-hi"],
+      ["verify", "क्या यह गाना BeatMind से बना है?", "22b-phone-verify-hi"],
+    ]) {
+      await p.goto(`${BASE}/hi/${path}`);
+      await p.getByRole("heading", { name: heading }).waitFor();
+      await p.waitForTimeout(500);
+      await shot(p, name);
+      await audit(p, `${path} (Hindi, phone)`);
+      if (await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) {
+        failures.push(`${path} (Hindi, phone): horizontal scroll at 390 px`);
+      }
+    }
     await p.goto(`${BASE}/hi/terms`);
     await shot(p, "16-phone-terms-hi");
     await audit(p, "terms (Hindi, phone)");
