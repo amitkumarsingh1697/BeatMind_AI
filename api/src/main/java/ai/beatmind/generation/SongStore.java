@@ -152,6 +152,19 @@ class SongStore {
         return sql.query(SongStore::mapSong).list();
     }
 
+    /** Vibe mode: the lyrics the model wrote while making the song, once checked (US-012). */
+    void setWrittenLyrics(Song song, String lyrics) {
+        jdbc.sql("""
+                UPDATE song SET lyrics = :lyrics, search_text = :text, search_key = :key, updated_at = now()
+                 WHERE id = :id AND lyrics IS NULL
+                """)
+                .param("lyrics", lyrics)
+                .param("text", TextRules.searchText(song.title(), song.prompt(), lyrics))
+                .param("key", TextRules.searchKey(song.title() + " " + song.prompt() + " " + lyrics))
+                .param("id", song.id())
+                .update();
+    }
+
     boolean rename(UUID id, UUID ownerId, String title) {
         Song song = find(id, ownerId).orElse(null);
         if (song == null) {

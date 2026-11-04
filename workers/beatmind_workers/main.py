@@ -173,7 +173,9 @@ def run_job(
     if job.kind == "edit":
         return run_edit(job, store, runner, acestep, finisher or Finisher())
     stored = []
+    written = ""
     for i, take in enumerate(render(job, runner, acestep, lyria), start=1):
+        written = written or take.lyrics
         raw_key = store.put(f"takes/{job.id}/take-{i}.{take.format}", take.data, CONTENT_TYPES[take.format])
         entry: dict = {"key": raw_key, "format": take.format, "runner": runner}
         settings = job.payload.get("beat")
@@ -204,6 +206,9 @@ def run_job(
     if not stored:
         raise RuntimeError("runner returned no takes")
     result: dict = {"takes": stored}
+    if written and not job.payload.get("lyrics") and not job.payload.get("instrumental"):
+        # Vibe mode: the model wrote the words; the API checks them and shows them on the song page.
+        result["lyrics"] = written
     if job.payload.get("provider") == "lyria" and lyria is not None:
         result["costUsd"] = lyria.cost(len(stored))  # US-016: actual spend against the daily cap
     return result

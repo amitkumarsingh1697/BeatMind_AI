@@ -1,6 +1,7 @@
 package ai.beatmind.generation;
 
 import ai.beatmind.moderation.ModerationCases;
+import ai.beatmind.moderation.TextModeration;
 import ai.beatmind.provenance.ProvenanceLedger;
 import ai.beatmind.provenance.ProvenanceLedger.Actor;
 import java.math.BigDecimal;
@@ -38,10 +39,12 @@ class JobFinalizer {
     private final Edits edits;
     private final Stems stems;
     private final Verifier verifier;
+    private final TextModeration moderation;
 
     JobFinalizer(JdbcClient jdbc, JsonMapper json, SongStore songs, Credits credits, ProvenanceLedger ledger,
                  TransactionTemplate tx, LyricDrafts drafts, ModerationCases cases, Edits edits, Verifier verifier,
-                 Stems stems) {
+                 Stems stems, TextModeration moderation) {
+        this.moderation = moderation;
         this.edits = edits;
         this.stems = stems;
         this.verifier = verifier;
@@ -122,11 +125,14 @@ class JobFinalizer {
         int withheld = 0;
         int made = 0;
         if ("succeeded".equals(status) && result != null) {
-            JsonNode list = json.readTree(result).path("takes");
+            JsonNode root = json.readTree(result);
+            boolean lyricsBlocked = writtenLyrics(userId, song, root);
+            JsonNode list = root.path("takes");
             for (int i = 0; i < list.size(); i++) {
                 JsonNode t = list.get(i);
                 int index = i + 1;
-                boolean isWithheld = t.path("withheld").asBoolean(false);
+                // Takes that sing blocked words are held back like any other unsafe take (US-028).
+                boolean isWithheld = lyricsBlocked || t.path("withheld").asBoolean(false);
                 Map<String, Object> assets = assets(t);
                 Long watermark = t.hasNonNull("watermarkId") ? t.get("watermarkId").asLong() : null;
                 JsonNode screen = t.path("similarity");
@@ -149,7 +155,7 @@ class JobFinalizer {
                         .update();
                 if (isWithheld) {
                     withheld++;
-                    String reason = t.path("withheldReason").asString("safety screen");
+                    String reason = lyricsBlocked ? "lyrics" : t.path("withheldReason").asString("safety screen");
                     Map<String, Object> event = new LinkedHashMap<>();
                     event.put("takeIndex", index);
                     event.put("reason", reason);
@@ -210,6 +216,35 @@ class JobFinalizer {
             ledger.append(song.id(), "credits_refunded", Actor.SYSTEM, Map.of(
                     "credits", refunded, "failedTakes", failed, "withheldTakes", withheld));
         }
+    }
+
+    /**
+     * Vibe mode with ACE-Step: the model writes the words while making the song. They go through
+     * the same lyric check as typed lyrics (US-028); if they pass they are stored on the song and
+     * shown with it, and the ledger records that the AI wrote them (REQ-F-31). Returns true if
+     * they were blocked, so the takes that sing them are held back.
+     */
+    private boolean writtenLyrics(UUID userId, SongStore.Song song, JsonNode result) {
+        String text = TextRules.nfc(result.path("lyrics").asString("").strip());
+        if (text.isEmpty() || song.lyrics() != null || song.instrumental()) {
+            return false;
+        }
+        if (TextRules.graphemes(text) > SongRequests.MAX_LYRICS_GRAPHEMES) {
+            text = TextRules.truncate(text, SongRequests.MAX_LYRICS_GRAPHEMES);
+        }
+        TextModeration.Verdict verdict = moderation.check("lyrics", text);
+        if (verdict.blocked()) {
+            cases.recordTextBlock(userId, "lyrics_block", verdict, text);
+            return true;
+        }
+        songs.setWrittenLyrics(song, text);
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("model", result.path("takes").path(0).path("runner").asString("unknown"));
+        event.put("lyricsSha256", SongRequests.sha256(text));
+        event.put("lyricsCharacters", TextRules.graphemes(text));
+        event.put("languageTag", song.languageTag());
+        ledger.append(song.id(), "lyrics_generated", Actor.AI, event);
+        return false;
     }
 
     /** Stored files per format. Older results have only {@code key} and {@code format}. */
