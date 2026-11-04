@@ -26,6 +26,20 @@ VOCAL_LANGUAGE = {"en": "en", "hi": "hi", "hinglish": "hi"}
 VOCAL_STYLE = {"female": "female vocals", "male": "male vocals", "duet": "male and female duet vocals"}
 
 
+SUNG_IN = {"en": "sung in English", "hi": "sung in Hindi", "hinglish": "sung in Hindi (Hinglish)"}
+
+
+def sample_query(prompt: str, language: str, seconds: float) -> str:
+    """The description ACE-Step's sample mode writes a song from: the vibe, the vocal type already
+    in ``prompt``, the language, and the length asked for (the model picks the final length)."""
+    if seconds >= 90:
+        length = f"about {round(seconds / 60, 1):g} minutes long"
+    else:
+        length = f"about {round(seconds)} seconds long"
+    parts = [prompt.strip() or "a song", SUNG_IN.get(language, "sung in English"), length]
+    return ", ".join(parts)
+
+
 @dataclass(frozen=True)
 class FetchedTake:
     data: bytes
@@ -60,16 +74,23 @@ class AceStepRunner:
         vocal = payload.get("vocalType")
         if not payload.get("instrumental") and vocal in VOCAL_STYLE:
             prompt = f"{prompt}, {VOCAL_STYLE[vocal]}" if prompt else VOCAL_STYLE[vocal]
+        language = str(payload.get("language", "en"))
+        duration = float(payload.get("durationSeconds", 60))
         params: dict[str, Any] = {
             "prompt": prompt,
             "lyrics": lyrics,
-            "vocal_language": VOCAL_LANGUAGE.get(str(payload.get("language", "en")), "en"),
-            "audio_duration": float(payload.get("durationSeconds", 60)),
+            "vocal_language": VOCAL_LANGUAGE.get(language, "en"),
+            "audio_duration": duration,
             "batch_size": int(payload.get("takes", 2)),
-            # Let the model write lyrics when the user gave none (vibe mode); custom lyrics are sung as given.
+            # Vibe mode: let the 5Hz LM plan the song; custom lyrics are sung as given.
             "thinking": not lyrics,
             "audio_format": "mp3",
         }
+        if not lyrics:
+            # ACE-Step sings nothing when the lyrics are empty, and "thinking" does not write any.
+            # Sample mode has its LM write the caption and lyrics from the description first.
+            params["sample_mode"] = True
+            params["sample_query"] = sample_query(prompt, language, duration)
         if settings:
             params["bpm"] = int(settings["bpm"])
             if settings.get("key") not in (None, "any"):

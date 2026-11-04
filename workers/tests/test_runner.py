@@ -56,7 +56,30 @@ def test_acestep_params_map_the_job():
     assert params["audio_duration"] == 90.0
     assert params["batch_size"] == 2
     assert params["thinking"] is True
-    assert AceStepRunner.params({"prompt": "x", "instrumental": True})["lyrics"] == "[Instrumental]"
+    instrumental = AceStepRunner.params({"prompt": "x", "instrumental": True})
+    assert instrumental["lyrics"] == "[Instrumental]"
+    assert "sample_mode" not in instrumental
+
+
+def test_acestep_vibe_mode_asks_the_model_to_write_lyrics():
+    # A vibe with no lyrics used to come back instrumental: ACE-Step sings nothing for empty lyrics.
+    params = AceStepRunner.params(
+        {
+            "prompt": "Hindi romantic wedding song, Bhojpuri vibe with orchestra",
+            "vocalType": "duet",
+            "language": "hi",
+            "durationSeconds": 120,
+            "instrumental": False,
+        }
+    )
+
+    assert params["sample_mode"] is True
+    assert params["sample_query"] == (
+        "Hindi romantic wedding song, Bhojpuri vibe with orchestra, male and female duet vocals, "
+        "sung in Hindi, about 2 minutes long"
+    )
+    assert params["vocal_language"] == "hi"
+    assert params["audio_duration"] == 120.0
 
 
 class FakeAceStep(BaseHTTPRequestHandler):
@@ -151,3 +174,4 @@ def test_acestep_params_sing_custom_lyrics_with_the_vocal_type():
     assert params["prompt"] == "slow ballad, female vocals"
     assert params["lyrics"] == "Raat ka safar"
     assert params["thinking"] is False
+    assert "sample_mode" not in params
