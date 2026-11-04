@@ -61,6 +61,7 @@ def test_acestep_params_map_the_job():
 
 class FakeAceStep(BaseHTTPRequestHandler):
     fail = False
+    no_file = False
 
     def log_message(self, *args):
         pass
@@ -82,6 +83,8 @@ class FakeAceStep(BaseHTTPRequestHandler):
                 self._json({"code": 200, "data": [{"status": 2, "result": "out of memory"}]})
                 return
             files = [{"file": "/v1/audio?path=a.mp3"}, {"file": "/v1/audio?path=b.mp3"}]
+            if FakeAceStep.no_file:
+                files = [{"file": ""}, {"file": ""}]
             self._json({"code": 200, "data": [{"status": 1, "result": json.dumps(files)}]})
 
     def do_GET(self):  # noqa: N802 - http.server API
@@ -98,6 +101,7 @@ def acestep_server():
     yield f"http://127.0.0.1:{server.server_port}"
     server.shutdown()
     FakeAceStep.fail = False
+    FakeAceStep.no_file = False
 
 
 def test_acestep_runner_fetches_both_takes(acestep_server):
@@ -117,6 +121,14 @@ def test_acestep_failure_raises(acestep_server):
     runner = AceStepRunner(acestep_server, poll_seconds=0.01)
 
     with pytest.raises(AceStepError):
+        runner.render({"prompt": "x", "takes": 2})
+
+
+def test_acestep_success_without_a_file_names_the_cause(acestep_server):
+    FakeAceStep.no_file = True
+    runner = AceStepRunner(acestep_server, poll_seconds=0.01)
+
+    with pytest.raises(AceStepError, match="without an audio file"):
         runner.render({"prompt": "x", "takes": 2})
 
 

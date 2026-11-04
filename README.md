@@ -58,6 +58,7 @@ the GPU.
 
    ```sh
    xcode-select --install    # git, if you don't have it
+   brew install ffmpeg       # ACE-Step needs it to save MP3s (Homebrew: https://brew.sh)
    git clone https://github.com/ace-step/ACE-Step-1.5.git && cd ACE-Step-1.5
    chmod +x start_api_server_macos.sh
    ./start_api_server_macos.sh    # serves on http://127.0.0.1:8001; leave it running
@@ -74,6 +75,10 @@ the GPU.
 
 3. Open http://localhost:3000/en/create and make a song. Each request renders two takes; the
    first one is slow while the models load.
+
+To see what went wrong when a song fails, run `docker compose logs worker --tail 80` and read the
+terminal where ACE-Step runs. "finished without an audio file" means ACE-Step could not save the
+take, usually because ffmpeg is missing.
 
 If the worker log says the connection was refused, edit `start_api_server_macos.sh`, set
 `HOST="0.0.0.0"` and an `API_KEY`, restart it, and add `ACESTEP_API_KEY=<that key>` to the command

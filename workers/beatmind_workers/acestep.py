@@ -84,6 +84,13 @@ class AceStepRunner:
             status = item.get("status")
             if status == 1:
                 results = json.loads(item["result"]) if isinstance(item["result"], str) else item["result"]
+                if not results or any(not r.get("file") for r in results):
+                    # ACE-Step reports success but saved nothing when it cannot write the file,
+                    # for example when ffmpeg is missing for MP3 export.
+                    raise AceStepError(
+                        f"ACE-Step task {task_id} finished without an audio file; check the ACE-Step "
+                        "server log (is ffmpeg installed on that machine?)"
+                    )
                 return [FetchedTake(self._get(r["file"]), "mp3") for r in results]
             if status == 2:
                 raise AceStepError(f"ACE-Step task {task_id} failed: {item.get('result')}")
