@@ -40,10 +40,18 @@ def sample_query(prompt: str, language: str, seconds: float) -> str:
     return ", ".join(parts)
 
 
+def written_lyrics(result: dict[str, Any]) -> str:
+    """The lyrics ACE-Step sang, as its result reports them; empty for an instrumental."""
+    text = str(result.get("lyrics") or "").strip()
+    return "" if text.lower() in ("", "[inst]", "[instrumental]") else text
+
+
 @dataclass(frozen=True)
 class FetchedTake:
     data: bytes
     format: str
+    # Lyrics the model wrote itself (vibe mode through sample mode); empty when none.
+    lyrics: str = ""
 
 
 class AceStepError(RuntimeError):
@@ -112,7 +120,7 @@ class AceStepRunner:
                         f"ACE-Step task {task_id} finished without an audio file; check the ACE-Step "
                         "server log (is ffmpeg installed on that machine?)"
                     )
-                return [FetchedTake(self._get(r["file"]), "mp3") for r in results]
+                return [FetchedTake(self._get(r["file"]), "mp3", written_lyrics(r)) for r in results]
             if status == 2:
                 raise AceStepError(f"ACE-Step task {task_id} failed: {item.get('result')}")
             time.sleep(self.poll_seconds)

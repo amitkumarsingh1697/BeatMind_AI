@@ -85,6 +85,7 @@ def test_acestep_vibe_mode_asks_the_model_to_write_lyrics():
 class FakeAceStep(BaseHTTPRequestHandler):
     fail = False
     no_file = False
+    lyrics = ""
 
     def log_message(self, *args):
         pass
@@ -108,6 +109,8 @@ class FakeAceStep(BaseHTTPRequestHandler):
             files = [{"file": "/v1/audio?path=a.mp3"}, {"file": "/v1/audio?path=b.mp3"}]
             if FakeAceStep.no_file:
                 files = [{"file": ""}, {"file": ""}]
+            if FakeAceStep.lyrics:
+                files = [dict(f, lyrics=FakeAceStep.lyrics) for f in files]
             self._json({"code": 200, "data": [{"status": 1, "result": json.dumps(files)}]})
 
     def do_GET(self):  # noqa: N802 - http.server API
@@ -125,6 +128,7 @@ def acestep_server():
     server.shutdown()
     FakeAceStep.fail = False
     FakeAceStep.no_file = False
+    FakeAceStep.lyrics = ""
 
 
 def test_acestep_runner_fetches_both_takes(acestep_server):
@@ -137,6 +141,25 @@ def test_acestep_runner_fetches_both_takes(acestep_server):
     data, content_type = store.objects["takes/job-1/take-2.mp3"]
     assert content_type == "audio/mpeg"
     assert data.startswith(b"ID3")
+
+
+def test_acestep_vibe_song_returns_the_lyrics_the_model_wrote(acestep_server):
+    FakeAceStep.lyrics = "[verse]\nतेरी आँखों में"
+    runner = AceStepRunner(acestep_server, poll_seconds=0.01)
+
+    result = main.run_job(job({"prompt": "wedding duet", "takes": 2}), FakeStore(), "acestep", runner)
+    assert result["lyrics"] == "[verse]\nतेरी आँखों में"
+
+    own = main.run_job(job({"prompt": "x", "lyrics": "my words", "takes": 2}), FakeStore(), "acestep", runner)
+    assert "lyrics" not in own
+
+
+def test_acestep_instrumental_result_has_no_lyrics(acestep_server):
+    FakeAceStep.lyrics = "[Instrumental]"
+    runner = AceStepRunner(acestep_server, poll_seconds=0.01)
+
+    result = main.run_job(job({"prompt": "lofi", "takes": 2}), FakeStore(), "acestep", runner)
+    assert "lyrics" not in result
 
 
 def test_acestep_failure_raises(acestep_server):
