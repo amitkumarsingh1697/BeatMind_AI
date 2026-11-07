@@ -93,8 +93,8 @@ def harmony(a: np.ndarray, b: np.ndarray) -> float:
         return 0.0
     best = -1.0
     for lag in range(-MAX_LAG_SECONDS, MAX_LAG_SECONDS + 1):
-        x = ca[max(0, lag):]
-        y = cb[max(0, -lag):]
+        x = ca[max(0, lag) :]
+        y = cb[max(0, -lag) :]
         n = min(len(x), len(y))
         if n < max(5, min(len(ca), len(cb)) // 2):
             continue

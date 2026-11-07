@@ -155,8 +155,20 @@ class FakeAceStep(BaseHTTPRequestHandler):
             cls.requests.append(("create_sample", body))
             plan = cls.plans[min(cls.samples, len(cls.plans) - 1)] if cls.plans else {}
             cls.samples += 1
-            self._json({"code": 200, "data": dict({"caption": "romantic duet", "bpm": 90 + cls.samples,
-                                                   "keyscale": "C major", "duration": 210}, **plan)})
+            self._json(
+                {
+                    "code": 200,
+                    "data": dict(
+                        {
+                            "caption": "romantic duet",
+                            "bpm": 90 + cls.samples,
+                            "keyscale": "C major",
+                            "duration": 210,
+                        },
+                        **plan,
+                    ),
+                }
+            )
         elif self.path == "/release_task":
             cls.requests.append(("release_task", body))
             assert body["batch_size"] == 1

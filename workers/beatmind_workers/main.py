@@ -66,8 +66,9 @@ def distinct_takes(
     for i in range(1, len(out)):
         worst = _worst_match(job, out, i)
         if worst.get("duplicate") and remake:
-            log.warning("job %s take %d duplicates take %d (%s); making it again", job.id, i + 1,
-                        worst["of"], worst)
+            log.warning(
+                "job %s take %d duplicates take %d (%s); making it again", job.id, i + 1, worst["of"], worst
+            )
             earlier = [t.lyrics for t in out[:i] if t.lyrics]
             out[i] = acestep.render_one(job.payload, earlier, seeds)  # type: ignore[union-attr]
             worst = dict(_worst_match(job, out, i), remade=True)
