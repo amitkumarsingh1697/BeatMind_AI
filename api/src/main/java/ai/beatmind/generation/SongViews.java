@@ -14,8 +14,12 @@ final class SongViews {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
-    /** {@code tempoBpm}: what the tempo check measured on a beat-mode take (US-015). */
-    record TakeView(int index, String status, String audioUrl, String format, Double tempoBpm, int version) {}
+    /**
+     * {@code tempoBpm}: what the tempo check measured on a beat-mode take (US-015). {@code lyrics}:
+     * the words this take sings when the model wrote them (vibe mode); only on a ready take.
+     */
+    record TakeView(int index, String status, String audioUrl, String format, Double tempoBpm, int version,
+                    String lyrics) {}
 
     /**
      * A song as the library and player show it. {@code aiGenerated} and {@code label} are always
@@ -82,7 +86,8 @@ final class SongViews {
         List<TakeView> views = takes.stream()
                 .map(t -> new TakeView(t.index(), t.status(),
                         "ready".equals(t.status()) && preview(t) != null ? audioUrl(s.id(), t.index()) : null,
-                        previewFormat(t), t.tempoBpm(), t.version()))
+                        previewFormat(t), t.tempoBpm(), t.version(),
+                        "ready".equals(t.status()) ? t.lyrics() : null))
                 .toList();
         if ("succeeded".equals(status) && views.stream().noneMatch(t -> t.audioUrl() != null)) {
             status = "failed";
