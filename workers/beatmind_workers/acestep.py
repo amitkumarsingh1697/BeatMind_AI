@@ -180,9 +180,10 @@ class AceStepRunner:
             )
             lyrics = intent.clean(written_lyrics(data))
             caption = str(data.get("caption") or "")
-            problems = intent.problems(lyrics, caption, prompt, language, earlier)
+            # Checked as it will be sung: cut to the take's length first.
+            fitted = intent.fit(lyrics, _seconds(data.get("duration")), duration)
+            problems = intent.problems(fitted, caption, prompt, language, earlier)
             if not problems:
-                fitted = intent.fit(lyrics, _seconds(data.get("duration")), duration)
                 return {
                     "lyrics": fitted,
                     "lyricsLinesWritten": len(lyrics.splitlines()),

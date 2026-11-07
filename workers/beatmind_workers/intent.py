@@ -26,6 +26,8 @@ import unicodedata
 # Two different songs share some common words (dil, pyaar, raat). More than this share of distinct
 # words in common means the second plan is a rewrite of the first, not a new song.
 MAX_LYRIC_OVERLAP = 0.6
+# A song has at least a verse; fewer lines than this is not a song plan.
+MIN_SUNG_LINES = 4
 # Share of letters that must be in the script of the language asked for.
 MIN_SCRIPT_SHARE = 0.85
 
@@ -47,6 +49,10 @@ DEVOTIONAL_WORDS = frozenset(
         "aarti",
         "arti",
         "mandir",
+        "darshan",
+        "aradhana",
+        "vandana",
+        "jaap",
         "puja",
         "pooja",
         "mahadev",
@@ -88,6 +94,10 @@ DEVOTIONAL_WORDS = frozenset(
         "भजन",
         "आरती",
         "मंदिर",
+        "दर्शन",
+        "आराधना",
+        "वंदना",
+        "जाप",
         "पूजा",
         "महादेव",
         "शिव",
@@ -175,6 +185,9 @@ def problems(lyrics: str, caption: str, prompt: str, language: str, earlier: lis
     out: list[str] = []
     if not words(lyrics):
         return ["the plan has no lyrics to sing"]
+    sung = sum(1 for ln in lyrics.splitlines() if ln.strip() and not SECTION_LINE.match(ln))
+    if sung < MIN_SUNG_LINES:
+        return [f"the plan has only {sung} lines to sing"]
     share = script_share(lyrics)
     if language == "hi":
         # Hindi is shown and sung from Devanagari or from Hindi typed in Latin letters.
@@ -224,7 +237,9 @@ def fit(lyrics: str, planned_seconds: float | None, seconds: float) -> str:
 
     The LM plans its own length (125 to 213 s for 60 and 120 s requests on the Mac), but the take
     is rendered at the length the creator chose. Whole sections are kept in order while they fit
-    the share of the planned length that will be sung; the first section is always kept.
+    the share of the planned length that will be sung. Sections with nothing to sing (an "[Intro]")
+    cost nothing, and the first section with words is always kept, so the take is never left
+    without lyrics (seen on the Mac: an empty intro kept alone).
     """
     if not planned_seconds or planned_seconds <= seconds * 1.1:
         return lyrics
@@ -238,7 +253,7 @@ def fit(lyrics: str, planned_seconds: float | None, seconds: float) -> str:
     kept: list[list[str]] = []
     used = 0
     for sec, n in zip(sections, sung, strict=True):
-        if kept and used + n > budget:
+        if used > 0 and n > 0 and used + n > budget:
             break
         kept.append(sec)
         used += n

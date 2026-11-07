@@ -101,9 +101,9 @@ def test_sample_query_describes_the_song_for_the_plan():
     assert sample_query("wedding duet", "hi", 120) == "wedding duet, sung in Hindi, about 2 minutes long"
 
 
-ROMANTIC_1 = "[Verse 1]\nतेरी आँखों में सपने हैं\nदिल की धड़कन तेरे नाम\n[Chorus]\nसाजन मेरे पास आ"
-ROMANTIC_2 = "[Verse 1]\nचाँदनी रात सुहानी है\nमहकी महकी हवा चले\n[Chorus]\nबाहों में भर ले मुझे"
-DEVOTIONAL = "[Verse 1]\nजय जय शिव शंकर\nहरि का नाम जपो\n[Chorus]\nप्रभु तेरी भक्ति"
+ROMANTIC_1 = "[Verse 1]\nतेरी आँखों में सपने हैं\nदिल की धड़कन तेरे नाम\n[Chorus]\nसाजन मेरे पास आ\nसात जनम का वादा"
+ROMANTIC_2 = "[Verse 1]\nचाँदनी रात सुहानी है\nमहकी महकी हवा चले\n[Chorus]\nबाहों में भर ले मुझे\nधीरे धीरे पास आ"
+DEVOTIONAL = "[Verse 1]\nजय जय शिव शंकर\nहरि का नाम जपो\n[Chorus]\nप्रभु तेरी भक्ति\nमंदिर में दीप जले"
 
 
 def tone(freqs, seconds=12.0, seed=0, rate=22050):
@@ -290,7 +290,7 @@ def test_acestep_instrumental_result_has_no_lyrics(acestep_server):
 @pytest.mark.tc("TC-REQ-F-05-02")
 def test_a_take_that_duplicates_the_other_is_made_again(acestep_server):
     same = tone(C_MAJOR, seed=1)
-    third = "[Verse 1]\nगोरी तेरा गाँव बड़ा प्यारा\n[Chorus]\nमैं तो गया मारा"
+    third = "[Verse 1]\nगोरी तेरा गाँव बड़ा प्यारा\nनदिया किनारे\n[Chorus]\nमैं तो गया मारा\nआ के यहाँ रे"
     FakeAceStep.plans = [{"lyrics": ROMANTIC_1}, {"lyrics": ROMANTIC_2}, {"lyrics": third}]
     FakeAceStep.audio = [same, tone(C_MAJOR, seed=2), tone(E_FLAT, seed=3)]
     runner = AceStepRunner(acestep_server, poll_seconds=0.01)
@@ -355,14 +355,30 @@ def test_acestep_params_sing_custom_lyrics_with_the_vocal_type():
     assert "sample_mode" not in params
 
 
+LONG_TAIL = [
+    "[Chorus]",
+    "ओ सजना",
+    "ओ सजनी",
+    "साथ रहें",
+    "हम दोनों",
+    "[Verse 2]",
+    "नई सुबह",
+    "नया सवेरा",
+    "नया घर",
+    "नया बसेरा",
+]
+
+
 def test_a_plan_written_for_a_longer_song_is_cut_to_fit(acestep_server):
     # On the Mac the LM wrote lyrics for 125 to 213 s while the take is 60 or 120 s long.
-    FakeAceStep.plans = [{"lyrics": ROMANTIC_1, "duration": 400}, {"lyrics": ROMANTIC_2, "duration": 400}]
+    long_one = "\n".join(["[Verse 1]", "चाँद तारे", "रात सुहानी", "तेरा मेरा", "प्यार पुराना"] + LONG_TAIL)
+    long_two = "\n".join(["[Verse 1]", "मेहंदी लगी", "हाथों में", "डोली सजी", "बारात चली"] + LONG_TAIL)
+    FakeAceStep.plans = [{"lyrics": long_one, "duration": 360}, {"lyrics": long_two, "duration": 360}]
     runner = AceStepRunner(acestep_server, poll_seconds=0.01)
 
     takes = runner.render(WEDDING)
 
-    assert takes[0].lyrics == "[Verse 1]\nतेरी आँखों में सपने हैं\nदिल की धड़कन तेरे नाम"
+    assert takes[0].lyrics == "\n".join(long_one.splitlines()[:5])
     plan = takes[0].meta["plan"]
     assert plan["lyricsLinesSung"] < plan["lyricsLinesWritten"]
     assert sent("release_task")[0]["lyrics"] == takes[0].lyrics
