@@ -4,7 +4,7 @@ from beatmind_workers import diversity
 from beatmind_workers.similarity import SAMPLE_RATE
 
 C_MAJOR = [(261.6, 329.6, 392.0), (349.2, 440.0, 523.3), (392.0, 493.9, 587.3), (261.6, 329.6, 392.0)]
-A_MINOR = [(220.0, 261.6, 329.6), (293.7, 349.2, 440.0), (329.6, 415.3, 493.9), (174.6, 220.0, 261.6)]
+E_FLAT = [(311.1, 392.0, 466.2), (207.7, 261.6, 311.1), (233.1, 293.7, 349.2), (311.1, 392.0, 466.2)]
 
 
 def song(chords, seconds=16, seed=0, phase=0.0):
@@ -38,6 +38,6 @@ def test_the_same_song_a_few_seconds_later_is_still_a_duplicate():
 
 
 def test_a_different_progression_is_a_different_song():
-    c = diversity.compare_samples(song(C_MAJOR, seed=1), song(A_MINOR, seed=2))
+    c = diversity.compare_samples(song(C_MAJOR, seed=1), song(E_FLAT, seed=2))
     assert not c.duplicate
     assert c.as_dict()["duplicate"] is False

@@ -12,9 +12,17 @@ compares every pair of takes on what a listener hears:
 * ``keyProfile``: cosine of the average chroma. Reported for information only: two songs in the
   same key score high on it.
 
-A take is a duplicate when the waveform or the harmony score reaches its threshold. The thresholds
-come from the takes in the RCA evidence on the real model (see ``tests/test_diversity.py`` and the
-pull request); they are meant to be tuned as we gather more real takes.
+A take is a duplicate when the waveform or the harmony score reaches its threshold. Calibration on
+real ACE-Step takes (Amit's Mac, 7 Nov, 1.7B LM, turbo DiT):
+
+* takes that shared one plan (the defect): harmony 0.370 to 0.496; 0.478 for the song reported;
+* takes of different songs: 0.144 to 0.367;
+* takes with their own plan (this fix): 0.284 to 0.334;
+* waveform at most 0.04 for every pair; key profile 0.986 to 1.000 for every pair (no signal).
+
+The ranges nearly touch, so the harmony threshold sits above every different-song pair and
+catches the worst shared-plan pairs, including the one reported. It is a backstop: the plan per
+take is what makes the takes different, and the threshold should be retuned as real takes add up.
 """
 
 from __future__ import annotations
@@ -34,7 +42,7 @@ MAX_LAG_SECONDS = 20
 SEGMENT_SECONDS = 1.0
 
 WAVEFORM_DUPLICATE = 0.9
-HARMONY_DUPLICATE = 0.8
+HARMONY_DUPLICATE = 0.42
 
 
 @dataclass(frozen=True)

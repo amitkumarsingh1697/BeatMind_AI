@@ -194,3 +194,52 @@ def problems(lyrics: str, caption: str, prompt: str, language: str, earlier: lis
         if shared > MAX_LYRIC_OVERLAP:
             out.append(f"the lyrics repeat take {i} ({shared:.0%} of words shared)")
     return out
+
+
+# Section tags ACE-Step understands. Any other bracketed line ("[laughing]", "[abrupt silence]",
+# "[DJ Drop: ...]") is a stage direction the LM made up, and is dropped before it is sung.
+KNOWN_SECTION = re.compile(
+    r"^\s*\[(verse|chorus|pre-chorus|prechorus|bridge|hook|intro|outro|interlude|refrain|break)"
+    r"(\s*\d+)?\s*\]\s*$",
+    re.IGNORECASE,
+)
+BRACKET_LINE = re.compile(r"^\s*[\[(].*[\])]\s*$")
+# Model tokens that leak into the LM's text, such as "<|audio_code_2246|>".
+LEAKED_TOKEN = re.compile(r"<\|[^|>]*\|>")
+
+
+def clean(lyrics: str) -> str:
+    """The lyrics without leaked model tokens and made-up stage directions."""
+    out: list[str] = []
+    for raw in LEAKED_TOKEN.sub("", lyrics or "").splitlines():
+        line = raw.strip()
+        if BRACKET_LINE.match(line) and not KNOWN_SECTION.match(line):
+            continue
+        out.append(line)
+    return "\n".join(out).strip()
+
+
+def fit(lyrics: str, planned_seconds: float | None, seconds: float) -> str:
+    """Shortens lyrics the LM wrote for a longer song, so the end is not cut off mid-line.
+
+    The LM plans its own length (125 to 213 s for 60 and 120 s requests on the Mac), but the take
+    is rendered at the length the creator chose. Whole sections are kept in order while they fit
+    the share of the planned length that will be sung; the first section is always kept.
+    """
+    if not planned_seconds or planned_seconds <= seconds * 1.1:
+        return lyrics
+    sections: list[list[str]] = []
+    for line in lyrics.splitlines():
+        if KNOWN_SECTION.match(line) or not sections:
+            sections.append([])
+        sections[-1].append(line)
+    sung = [sum(1 for ln in sec if ln.strip() and not KNOWN_SECTION.match(ln)) for sec in sections]
+    budget = sum(sung) * seconds / planned_seconds
+    kept: list[list[str]] = []
+    used = 0
+    for sec, n in zip(sections, sung, strict=True):
+        if kept and used + n > budget:
+            break
+        kept.append(sec)
+        used += n
+    return "\n".join(line for sec in kept for line in sec).strip()

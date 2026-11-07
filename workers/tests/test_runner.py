@@ -126,7 +126,7 @@ def tone(freqs, seconds=12.0, seed=0, rate=22050):
 
 
 C_MAJOR = [(261.6, 329.6, 392.0), (349.2, 440.0, 523.3), (392.0, 493.9, 587.3), (261.6, 329.6, 392.0)]
-A_MINOR = [(220.0, 261.6, 329.6), (293.7, 349.2, 440.0), (329.6, 415.3, 493.9), (174.6, 220.0, 261.6)]
+E_FLAT = [(311.1, 392.0, 466.2), (207.7, 261.6, 311.1), (233.1, 293.7, 349.2), (311.1, 392.0, 466.2)]
 
 
 class FakeAceStep(BaseHTTPRequestHandler):
@@ -163,7 +163,7 @@ class FakeAceStep(BaseHTTPRequestHandler):
                             "caption": "romantic duet",
                             "bpm": 90 + cls.samples,
                             "keyscale": "C major",
-                            "duration": 210,
+                            "duration": 125,
                         },
                         **plan,
                     ),
@@ -248,7 +248,7 @@ def test_acestep_vibe_takes_are_two_compositions(acestep_server):
     assert take_two["generation"]["seed"] == bodies[1]["seed"]
     assert take_two["generation"]["captionSent"] == bodies[1]["prompt"]
     assert take_two["generation"]["plan"]["caption"] == "romantic duet"
-    assert take_two["generation"]["plan"]["lmDuration"] == 210
+    assert take_two["generation"]["plan"]["lmDuration"] == 125
 
 
 @pytest.mark.tc("TC-REQ-F-05-02")
@@ -292,7 +292,7 @@ def test_a_take_that_duplicates_the_other_is_made_again(acestep_server):
     same = tone(C_MAJOR, seed=1)
     third = "[Verse 1]\nगोरी तेरा गाँव बड़ा प्यारा\n[Chorus]\nमैं तो गया मारा"
     FakeAceStep.plans = [{"lyrics": ROMANTIC_1}, {"lyrics": ROMANTIC_2}, {"lyrics": third}]
-    FakeAceStep.audio = [same, tone(C_MAJOR, seed=2), tone(A_MINOR, seed=3)]
+    FakeAceStep.audio = [same, tone(C_MAJOR, seed=2), tone(E_FLAT, seed=3)]
     runner = AceStepRunner(acestep_server, poll_seconds=0.01)
 
     result = main.run_job(job(dict(WEDDING, takes=2)), FakeStore(), "acestep", runner)
@@ -353,3 +353,16 @@ def test_acestep_params_sing_custom_lyrics_with_the_vocal_type():
     assert params["lyrics"] == "Raat ka safar"
     assert params["thinking"] is False
     assert "sample_mode" not in params
+
+
+def test_a_plan_written_for_a_longer_song_is_cut_to_fit(acestep_server):
+    # On the Mac the LM wrote lyrics for 125 to 213 s while the take is 60 or 120 s long.
+    FakeAceStep.plans = [{"lyrics": ROMANTIC_1, "duration": 400}, {"lyrics": ROMANTIC_2, "duration": 400}]
+    runner = AceStepRunner(acestep_server, poll_seconds=0.01)
+
+    takes = runner.render(WEDDING)
+
+    assert takes[0].lyrics == "[Verse 1]\nतेरी आँखों में सपने हैं\nदिल की धड़कन तेरे नाम"
+    plan = takes[0].meta["plan"]
+    assert plan["lyricsLinesSung"] < plan["lyricsLinesWritten"]
+    assert sent("release_task")[0]["lyrics"] == takes[0].lyrics

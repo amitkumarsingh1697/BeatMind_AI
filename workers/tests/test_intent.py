@@ -41,3 +41,20 @@ def test_a_second_plan_that_repeats_the_first_is_rejected():
     assert intent.problems(ROMANTIC, "", PROMPT, "hi", [ROMANTIC])[0].startswith("the lyrics repeat take 1")
     other = "[Verse 1]\nचाँदनी रात सुहानी है\nमहकी हवा चले"
     assert intent.problems(other, "", PROMPT, "hi", [ROMANTIC]) == []
+
+
+def test_stage_directions_and_leaked_tokens_are_not_sung():
+    # Seen on the Mac: "[abrupt silence]", "[laughing]" and "<|audio_code_2246|>" in plan lyrics.
+    raw = "[Verse 1]\n<|audio_code_2246|>teri yaad aayi\n[laughing]\n[Chorus]\ndil mera\n[abrupt silence]"
+    assert intent.clean(raw) == "[Verse 1]\nteri yaad aayi\n[Chorus]\ndil mera"
+
+
+def test_lyrics_written_for_a_longer_song_are_cut_at_a_section():
+    lyrics = "\n".join(
+        ["[Verse 1]", "a", "b", "c", "d", "[Chorus]", "e", "f", "g", "h", "[Verse 2]", "i", "j", "k", "l"]
+    )
+    # Planned for 180 s, sung in 120 s: two of three sections fit.
+    assert intent.fit(lyrics, 180, 120) == "\n".join(lyrics.splitlines()[:10])
+    assert intent.fit(lyrics, 125, 120) == lyrics  # close enough: kept whole
+    assert intent.fit(lyrics, None, 120) == lyrics
+    assert intent.fit(lyrics, 600, 30).splitlines()[0] == "[Verse 1]"  # the first section stays
