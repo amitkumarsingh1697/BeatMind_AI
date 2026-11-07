@@ -8,6 +8,7 @@ REQ-F-03,FEAT-03,TC-REQ-F-03-02,Native-speaker review of 50 lyric samples per la
 REQ-F-04,FEAT-04,TC-REQ-F-04-01,"Beat request validates BPM 60-200, key and instrument lists",Unit,JUnit 5,Yes,G1,Written
 REQ-F-04,FEAT-04,TC-REQ-F-04-02,Detected tempo within 4% of the target (half or double time allowed) on the stub; key check waits for real takes,Model eval,JUnit 5 + pytest,Yes,G1,Written
 REQ-F-05,FEAT-05,TC-REQ-F-05-01,"Two takes per request; keep, regenerate and discard work",E2E,Playwright,Yes,G2,Not written
+REQ-F-05,FEAT-05,TC-REQ-F-05-02,"The two takes are different compositions: own plan and seed each, request kept as written, duplicates remade or refunded",Unit,pytest + JUnit 5,Yes,G2,Written
 REQ-F-06,FEAT-02,TC-REQ-F-06-01,Lengths 30 s and 4 min produced within ±5 s,Model eval,pytest,Yes,G2,Not written
 REQ-F-07,FEAT-16,TC-REQ-F-07-01,Language not passed G1 is hidden or marked experimental,Integration,JUnit 5,Yes,G2,Written
 REQ-F-08,FEAT-16,TC-REQ-F-08-01,Text stored NFC; grapheme counting; transliteration and language tag stored,Unit,JUnit 5,Yes,G2,Written

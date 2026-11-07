@@ -126,13 +126,24 @@ class JobFinalizer {
         int made = 0;
         if ("succeeded".equals(status) && result != null) {
             JsonNode root = json.readTree(result);
-            boolean lyricsBlocked = writtenLyrics(userId, song, root);
             JsonNode list = root.path("takes");
+            // Vibe mode: each take sings words the model wrote for it. Older results carry one set
+            // of words for the whole song.
+            Map<Integer, String> takeLyrics = new LinkedHashMap<>();
+            java.util.Set<Integer> lyricsBlocked = new java.util.HashSet<>();
+            if (perTakeLyrics(list)) {
+                checkTakeLyrics(userId, song, list, takeLyrics, lyricsBlocked);
+            } else if (writtenLyrics(userId, song, root)) {
+                for (int i = 1; i <= list.size(); i++) {
+                    lyricsBlocked.add(i);
+                }
+            }
             for (int i = 0; i < list.size(); i++) {
                 JsonNode t = list.get(i);
                 int index = i + 1;
                 // Takes that sing blocked words are held back like any other unsafe take (US-028).
-                boolean isWithheld = lyricsBlocked || t.path("withheld").asBoolean(false);
+                boolean blockedWords = lyricsBlocked.contains(index);
+                boolean isWithheld = blockedWords || t.path("withheld").asBoolean(false);
                 Map<String, Object> assets = assets(t);
                 Long watermark = t.hasNonNull("watermarkId") ? t.get("watermarkId").asLong() : null;
                 JsonNode screen = t.path("similarity");
@@ -151,11 +162,11 @@ class JobFinalizer {
                         .param("wm", watermark)
                         .param("assets", json.writeValueAsString(assets))
                         .param("screen", screen.isObject() ? json.writeValueAsString(screen) : null)
-                        .param("analysis", tempo.isObject() ? json.writeValueAsString(Map.of("tempo", tempo)) : null)
+                        .param("analysis", analysis(t, takeLyrics.get(index)))
                         .update();
                 if (isWithheld) {
                     withheld++;
-                    String reason = lyricsBlocked ? "lyrics" : t.path("withheldReason").asString("safety screen");
+                    String reason = blockedWords ? "lyrics" : t.path("withheldReason").asString("safety screen");
                     Map<String, Object> event = new LinkedHashMap<>();
                     event.put("takeIndex", index);
                     event.put("reason", reason);
@@ -189,6 +200,16 @@ class JobFinalizer {
                     });
                     payload.put("fileSha256", hashes);
                     payload.put("c2pa", t.path("c2pa").asBoolean(false));
+                    JsonNode generation = t.path("generation");
+                    if (generation.path("seed").isNumber()) {
+                        // RCA 4 Nov: the seed, so a take can be traced and told apart from the other.
+                        payload.put("seed", generation.path("seed").asLong());
+                    }
+                    JsonNode diversity = t.path("diversity");
+                    if (diversity.path("harmony").isNumber()) {
+                        payload.put("diversityHarmony", diversity.path("harmony").asDouble());
+                        payload.put("diversityRemade", diversity.path("remade").asBoolean(false));
+                    }
                     if (tempo.isObject()) {
                         payload.put("tempoTargetBpm", tempo.path("targetBpm").asInt());
                         payload.put("tempoMeasuredBpm", tempo.path("measuredBpm").asDouble());
@@ -218,8 +239,67 @@ class JobFinalizer {
         }
     }
 
+    /** The worker's analysis of a take, kept with it: tempo, its own lyrics, how it was made, diversity. */
+    private String analysis(JsonNode take, String lyrics) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (String field : List.of("tempo", "generation", "diversity")) {
+            if (take.path(field).isObject()) {
+                out.put(field, take.get(field));
+            }
+        }
+        if (lyrics != null) {
+            out.put("lyrics", lyrics);
+        }
+        return out.isEmpty() ? null : json.writeValueAsString(out);
+    }
+
+    private static boolean perTakeLyrics(JsonNode takes) {
+        for (JsonNode t : takes) {
+            if (!t.path("lyrics").asString("").isBlank()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
-     * Vibe mode with ACE-Step: the model writes the words while making the song. They go through
+     * Vibe mode, one composition per take: each take's words go through the lyric check (US-028).
+     * Words that pass are kept with the take; the first take's become the song's lyrics, and the
+     * ledger records that the AI wrote them (REQ-F-31). A take whose words are blocked is held back.
+     */
+    private void checkTakeLyrics(UUID userId, SongStore.Song song, JsonNode takes, Map<Integer, String> passed,
+                                 java.util.Set<Integer> blocked) {
+        if (song.lyrics() != null || song.instrumental()) {
+            return;
+        }
+        for (int i = 0; i < takes.size(); i++) {
+            String text = TextRules.nfc(takes.get(i).path("lyrics").asString("").strip());
+            if (text.isEmpty()) {
+                continue;
+            }
+            if (TextRules.graphemes(text) > SongRequests.MAX_LYRICS_GRAPHEMES) {
+                text = TextRules.truncate(text, SongRequests.MAX_LYRICS_GRAPHEMES);
+            }
+            TextModeration.Verdict verdict = moderation.check("lyrics", text);
+            if (verdict.blocked()) {
+                cases.recordTextBlock(userId, "lyrics_block", verdict, text);
+                blocked.add(i + 1);
+                continue;
+            }
+            passed.put(i + 1, text);
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("takeIndex", i + 1);
+            event.put("model", takes.get(i).path("runner").asString("unknown"));
+            event.put("lyricsSha256", SongRequests.sha256(text));
+            event.put("lyricsCharacters", TextRules.graphemes(text));
+            event.put("languageTag", song.languageTag());
+            ledger.append(song.id(), "lyrics_generated", Actor.AI, event);
+        }
+        passed.values().stream().findFirst().ifPresent(text -> songs.setWrittenLyrics(song, text));
+    }
+
+    /**
+     * Vibe mode with ACE-Step, results from before takes carried their own words: the model writes the words while making the song. They go through
      * the same lyric check as typed lyrics (US-028); if they pass they are stored on the song and
      * shown with it, and the ledger records that the AI wrote them (REQ-F-31). Returns true if
      * they were blocked, so the takes that sing them are held back.

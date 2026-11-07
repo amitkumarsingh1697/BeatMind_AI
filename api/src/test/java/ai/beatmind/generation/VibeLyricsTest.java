@@ -68,4 +68,72 @@ class VibeLyricsTest extends SongApiSupport {
         assertThat(jdbc.sql("SELECT string_agg(kind, ',') FROM moderation_case WHERE song_id IS NULL")
                 .query(String.class).single()).isEqualTo("lyrics_block");
     }
+
+    /** The worker's result since the RCA fix: each take has its own words, seed and diversity check. */
+    private void finishWithTakeLyrics(UUID jobId, String one, String two, String secondExtra) {
+        String take = """
+                {"key":"takes/%1$s/take-%2$d.mp3","format":"mp3","runner":"acestep","watermarkId":%3$d,"c2pa":true,
+                 "lyrics":%4$s,"generation":{"seed":%5$d,"captionSent":"wedding duet"},
+                 "assets":{"mp3_192":{"key":"takes/%1$s/take-%2$d-192.mp3","contentType":"audio/mpeg","sha256":"a%2$d","bytes":10}}%6$s}
+                """;
+        String result = "{\"takes\":[" + take.formatted(jobId, 1, 3001, json.writeValueAsString(one), 11, "") + ","
+                + take.formatted(jobId, 2, 3002, json.writeValueAsString(two), 22, secondExtra) + "],"
+                + "\"lyrics\":" + json.writeValueAsString(one) + "}";
+        jdbc.sql("UPDATE generation_job SET status = 'succeeded', finished_at = now(), result = CAST(:r AS jsonb) WHERE id = :id")
+                .param("r", result).param("id", jobId).update();
+        finalizer.runOnce();
+    }
+
+    private String credits(UUID job) {
+        return jdbc.sql("SELECT string_agg(reason || ':' || delta, ',' ORDER BY id) FROM credit_ledger WHERE job_id = :job")
+                .param("job", job).query(String.class).single();
+    }
+
+    @Test
+    @Tag("TC-REQ-F-05-02")
+    void eachTakeShowsTheWordsItSings() throws Exception {
+        UUID[] ids = made(neha, "romantic wedding duet, bhojpuri vibe");
+        finishWithTakeLyrics(ids[0], "[verse]\nतेरी आँखों में सपने हैं", "[verse]\nचाँदनी रात सुहानी है", "");
+
+        mvc.perform(get("/v1/songs/" + ids[1]).cookie(neha))
+                .andExpect(jsonPath("$.lyrics").value("[verse]\nतेरी आँखों में सपने हैं"))
+                .andExpect(jsonPath("$.takes[0].lyrics").value("[verse]\nतेरी आँखों में सपने हैं"))
+                .andExpect(jsonPath("$.takes[1].lyrics").value("[verse]\nचाँदनी रात सुहानी है"));
+        assertThat(jdbc.sql("SELECT count(*) FROM provenance_event WHERE song_id = :s AND type = 'lyrics_generated'")
+                .param("s", ids[1]).query(Long.class).single()).isEqualTo(2);
+        // The audit trail is kept with the take.
+        assertThat(jdbc.sql("SELECT analysis->'generation'->>'seed' FROM take WHERE song_id = :s AND idx = 2")
+                .param("s", ids[1]).query(String.class).single()).isEqualTo("22");
+    }
+
+    @Test
+    @Tag("TC-REQ-F-31-01")
+    void blockedWordsHoldBackOnlyTheTakeThatSingsThem() throws Exception {
+        UUID[] ids = made(neha, "angry drill");
+        finishWithTakeLyrics(ids[0], "[Verse]\nchaand sitare", "[Verse]\nmain tujhe maar dalunga", "");
+
+        mvc.perform(get("/v1/songs/" + ids[1]).cookie(neha))
+                .andExpect(jsonPath("$.lyrics").value("[Verse]\nchaand sitare"))
+                .andExpect(jsonPath("$.takes[0].status").value("ready"))
+                .andExpect(jsonPath("$.takes[1].status").value("withheld"))
+                .andExpect(jsonPath("$.takes[1].lyrics").doesNotExist());
+        assertThat(credits(ids[0])).isEqualTo("generation:-2,refund_withheld:1");
+    }
+
+    @Test
+    @Tag("TC-REQ-F-05-02")
+    void aTakeThatDuplicatesTheOtherIsRefunded() throws Exception {
+        UUID[] ids = made(neha, "romantic wedding duet");
+        finishWithTakeLyrics(ids[0], "[verse]\nतेरी आँखों में", "[verse]\nचाँदनी रात",
+                ",\"withheld\":true,\"withheldReason\":\"duplicate_take\",\"diversity\":{\"harmony\":0.97,\"duplicate\":true,\"remade\":true}");
+
+        mvc.perform(get("/v1/songs/" + ids[1]).cookie(neha))
+                .andExpect(jsonPath("$.takes[0].status").value("ready"))
+                .andExpect(jsonPath("$.takes[1].status").value("withheld"));
+        assertThat(credits(ids[0])).isEqualTo("generation:-2,refund_withheld:1");
+        assertThat(events(ids[1])).contains("take_withheld");
+        assertThat(jdbc.sql("""
+                SELECT CAST(body AS jsonb)->'payload'->>'reason' FROM provenance_event WHERE song_id = :s AND type = 'take_withheld'
+                """).param("s", ids[1]).query(String.class).single()).isEqualTo("duplicate_take");
+    }
 }

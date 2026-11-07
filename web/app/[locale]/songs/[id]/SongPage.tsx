@@ -22,6 +22,8 @@ type Take = {
   tempoBpm: number | null;
   /** The current version after edits (US-038); in the audio URL so the browser does not replay a cached file. */
   version: number;
+  /** Vibe mode: the words this take sings. Each take is its own composition, so they differ. */
+  lyrics?: string | null;
 };
 type Beat = { genre: string; bpm: number; key: string; include: string[]; exclude: string[] };
 type Takedown = {
@@ -236,9 +238,9 @@ function SongView({ me, locale, id }: { me: Me; locale: Locale; id: string }) {
       <div className="grid-2">
         <section className="card flat" aria-labelledby="lyrics-heading">
           <h2 id="lyrics-heading">{S.lyrics}</h2>
-          {song.lyrics ? (
+          {current?.lyrics || song.lyrics ? (
             <p className="lyrics-text" lang={song.languageTag}>
-              {song.lyrics}
+              {current?.lyrics || song.lyrics}
             </p>
           ) : song.instrumental ? (
             <p className="muted">{S.instrumentalText}</p>
