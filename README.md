@@ -61,7 +61,9 @@ the GPU.
    brew install ffmpeg       # ACE-Step needs it to save MP3s (Homebrew: https://brew.sh)
    git clone https://github.com/ace-step/ACE-Step-1.5.git && cd ACE-Step-1.5
    chmod +x start_api_server_macos.sh
-   ./start_api_server_macos.sh    # serves on http://127.0.0.1:8001; leave it running
+   # serves on http://127.0.0.1:8001; leave it running. The 1.7B writing model writes better
+   # lyrics than the 0.6B one ACE-Step otherwise loads for song plans.
+   ACESTEP_LM_MODEL_PATH=acestep-5Hz-lm-1.7B ./start_api_server_macos.sh
    ```
 
    Open http://127.0.0.1:8001/docs to check it is up.
@@ -69,12 +71,20 @@ the GPU.
 
    ```sh
    BEATMIND_RUNNER=acestep ACESTEP_URL=http://host.docker.internal:8001 \
-   ACESTEP_TIMEOUT_SECONDS=1800 BEATMIND_LEASE_SECONDS=2400 \
+   ACESTEP_TIMEOUT_SECONDS=1200 BEATMIND_LEASE_SECONDS=4200 \
    docker compose up --build
    ```
 
-3. Open http://localhost:3000/en/create and make a song. Each request renders two takes; the
-   first one is slow while the models load.
+3. Open http://localhost:3000/en/create and make a song. Each request renders two takes, one
+   after the other, so they are two different songs; the first one is slow while the models load.
+
+How a vibe song is made: ACE-Step's writing model writes a plan for each take (lyrics, tempo,
+key); the worker checks the plan against your request (language, words to sing, no devotional
+song you did not ask for, not a copy of the other take) and asks for a new one if it does not fit;
+then the music model gets your description word for word, your length, that take's lyrics and its
+own seed. After both takes are made, the worker compares them, makes a take again if it sounds
+like the other one, and refunds it if it still does. Each take keeps its seed, plan and comparison
+scores in the database.
 
 To see what went wrong when a song fails, run `docker compose logs worker --tail 80` and read the
 terminal where ACE-Step runs. "finished without an audio file" means ACE-Step could not save the
@@ -90,9 +100,10 @@ then `BEATMIND_RUNNER=acestep ACESTEP_URL=http://<gpu-box>:8001 ACESTEP_API_KEY=
 **On a CPU only** it works but is slow (about 5 minutes per take on 4 cores); use the settings in
 [workers/spikes/hindi/README.md](workers/spikes/hindi/README.md) and raise both timeouts as above.
 
-`ACESTEP_TIMEOUT_SECONDS` is how long the worker waits for one request's takes, and
+`ACESTEP_TIMEOUT_SECONDS` is how long the worker waits for one take, and
 `BEATMIND_LEASE_SECONDS` is how long a running job may take before it counts as stuck and is
-started again; keep the lease above the timeout. Stems still use the band-split stub unless the
+started again; a job makes two takes and sometimes remakes one, so keep the lease above three
+times the timeout. Stems still use the band-split stub unless the
 worker runs with `BEATMIND_STEMS=demucs` and the `demucs` package.
 
 To work on one part:

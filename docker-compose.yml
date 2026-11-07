@@ -85,10 +85,11 @@ services:
       BEATMIND_RUNNER: ${BEATMIND_RUNNER:-stub}
       ACESTEP_URL: ${ACESTEP_URL:-}
       ACESTEP_API_KEY: ${ACESTEP_API_KEY:-}
-      # Seconds to wait for one request's takes, and before a running job counts as stuck.
+      # Seconds to wait for one take, and before a running job (two takes, sometimes a remake) counts
+      # as stuck; keep the lease above three times the timeout.
       # Raise both for a laptop or CPU, where two takes can take several minutes.
       ACESTEP_TIMEOUT_SECONDS: ${ACESTEP_TIMEOUT_SECONDS:-600}
-      BEATMIND_LEASE_SECONDS: ${BEATMIND_LEASE_SECONDS:-600}
+      BEATMIND_LEASE_SECONDS: ${BEATMIND_LEASE_SECONDS:-2400}
       S3_ENDPOINT: http://s3:8333
       S3_ACCESS_KEY: local
       S3_SECRET_KEY: local-secret

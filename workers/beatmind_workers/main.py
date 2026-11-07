@@ -10,7 +10,7 @@ import time
 
 import psycopg
 
-from beatmind_workers import beat, editing, finishing, lyrics, queue, stems, stub, verify
+from beatmind_workers import beat, diversity, editing, finishing, lyrics, queue, stems, stub, verify
 from beatmind_workers.acestep import AceStepRunner, FetchedTake
 from beatmind_workers.finishing import Finisher
 from beatmind_workers.lyria import LyriaRunner
@@ -45,6 +45,51 @@ def render(
     if runner == "acestep" and acestep is not None:
         return acestep.render(job.payload)
     raise ValueError(f"unknown runner {runner!r}; use stub or acestep")
+
+
+def distinct_takes(
+    job: queue.Job, takes: list[FetchedTake], runner: str, acestep: AceStepRunner | None
+) -> tuple[list[FetchedTake], list[dict]]:
+    """Two credits buy two songs: compares each take with the ones before it (``diversity``).
+
+    A take that duplicates an earlier one is made again once, with a new plan and seed, when the
+    runner can do that (ACE-Step). The check for every take is returned; ``duplicate`` stays true
+    when the remake was a duplicate too, and that take is then withheld and refunded.
+    """
+    checks: list[dict] = [{} for _ in takes]
+    # The stub's test tones are one note each, not compositions; only model takes are compared.
+    if len(takes) < 2 or runner == "stub":
+        return takes, checks
+    remake = runner == "acestep" and acestep is not None and job.payload.get("provider") != "lyria"
+    out = list(takes)
+    seeds = [int(t.meta["seed"]) for t in takes if "seed" in t.meta]
+    for i in range(1, len(out)):
+        worst = _worst_match(job, out, i)
+        if worst.get("duplicate") and remake:
+            log.warning(
+                "job %s take %d duplicates take %d (%s); making it again", job.id, i + 1, worst["of"], worst
+            )
+            earlier = [t.lyrics for t in out[:i] if t.lyrics]
+            out[i] = acestep.render_one(job.payload, earlier, seeds)  # type: ignore[union-attr]
+            worst = dict(_worst_match(job, out, i), remade=True)
+        checks[i] = worst
+    return out, checks
+
+
+def _worst_match(job: queue.Job, takes: list[FetchedTake], i: int) -> dict:
+    """The earlier take that take ``i`` is most like, by harmony score."""
+    worst: dict = {}
+    for j in range(i):
+        try:
+            c = diversity.compare(takes[j].data, takes[i].data).as_dict()
+        except Exception as e:  # noqa: BLE001 - a failed comparison must not lose takes that were made
+            log.warning("job %s: could not compare take %d with take %d (%s)", job.id, i + 1, j + 1, e)
+            return {"error": str(e)[:200]}
+        if not worst or c["duplicate"] or c["harmony"] > worst["harmony"]:
+            worst = dict(c, of=j + 1)
+        if c["duplicate"]:
+            break
+    return worst
 
 
 def tempo_check(take: FetchedTake, target_bpm: float) -> dict:
@@ -174,10 +219,18 @@ def run_job(
         return run_edit(job, store, runner, acestep, finisher or Finisher())
     stored = []
     written = ""
-    for i, take in enumerate(render(job, runner, acestep, lyria), start=1):
+    takes, checks = distinct_takes(job, render(job, runner, acestep, lyria), runner, acestep)
+    vibe = not job.payload.get("lyrics") and not job.payload.get("instrumental")
+    for i, take in enumerate(takes, start=1):
         written = written or take.lyrics
         raw_key = store.put(f"takes/{job.id}/take-{i}.{take.format}", take.data, CONTENT_TYPES[take.format])
         entry: dict = {"key": raw_key, "format": take.format, "runner": runner}
+        if take.meta:
+            entry["generation"] = take.meta  # seed, caption sent, plan: the audit trail (RCA 4 Nov)
+        if take.lyrics and vibe:
+            entry["lyrics"] = take.lyrics  # each take sings its own words
+        if checks[i - 1]:
+            entry["diversity"] = checks[i - 1]
         settings = job.payload.get("beat")
         if settings:
             entry["tempo"] = tempo_check(take, float(settings["bpm"]))
@@ -187,6 +240,10 @@ def run_job(
             if result["withheld"]:
                 entry["withheld"] = True
                 entry["withheldReason"] = "similarity"
+        if checks[i - 1].get("duplicate"):
+            # Not a second song: withheld, so the credit comes back (JobFinalizer).
+            entry["withheld"] = True
+            entry["withheldReason"] = "duplicate_take"
         if finisher is not None:
             finished = finisher.finish(take.data, job.payload, i)
             ext = {"mp3_192": "192.mp3", "mp3_320": "320.mp3", "wav": "master.wav"}
@@ -206,7 +263,7 @@ def run_job(
     if not stored:
         raise RuntimeError("runner returned no takes")
     result: dict = {"takes": stored}
-    if written and not job.payload.get("lyrics") and not job.payload.get("instrumental"):
+    if written and vibe:
         # Vibe mode: the model wrote the words; the API checks them and shows them on the song page.
         result["lyrics"] = written
     if job.payload.get("provider") == "lyria" and lyria is not None:

@@ -41,9 +41,13 @@ class SongStore {
         }
     }
 
-    /** {@code tempoBpm} is the tempo the worker measured on a beat-mode take (US-015), else null. */
+    /**
+     * {@code tempoBpm} is the tempo the worker measured on a beat-mode take (US-015), else null.
+     * {@code lyrics} are the words the model wrote for this take in vibe mode, once they passed the
+     * lyric check; null otherwise (each take is its own composition).
+     */
     record Take(UUID id, int index, String status, Long watermarkId, Map<String, Asset> assets, Double tempoBpm,
-                int version) {}
+                int version, String lyrics) {}
 
     record Asset(String key, String contentType, String sha256, long bytes) {}
 
@@ -292,11 +296,14 @@ class SongStore {
         Long watermark = rs.wasNull() ? null : wm;
         String analysis = rs.getString("analysis");
         Double tempo = null;
+        String lyrics = null;
         if (analysis != null) {
-            JsonNode measured = json.readTree(analysis).path("tempo").path("measuredBpm");
+            JsonNode info = json.readTree(analysis);
+            JsonNode measured = info.path("tempo").path("measuredBpm");
             tempo = measured.isNumber() ? measured.asDouble() : null;
+            lyrics = info.path("lyrics").isString() ? info.path("lyrics").asString() : null;
         }
         return new Take(rs.getObject("id", UUID.class), rs.getInt("idx"), rs.getString("status"), watermark, assets, tempo,
-                rs.getInt("current_version"));
+                rs.getInt("current_version"), lyrics);
     }
 }
