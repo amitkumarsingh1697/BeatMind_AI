@@ -250,6 +250,18 @@ def fit(lyrics: str, planned_seconds: float | None, seconds: float) -> str:
         sections[-1].append(line)
     sung = [sum(1 for ln in sec if ln.strip() and not KNOWN_SECTION.match(ln)) for sec in sections]
     budget = sum(sung) * seconds / planned_seconds
+    if sum(1 for n in sung if n) <= 1:
+        # No section tags (seen on the Mac: 50 lines in one block): cut by lines instead.
+        lines = lyrics.splitlines()
+        keep = max(MIN_SUNG_LINES, int(budget))
+        out, count = [], 0
+        for line in lines:
+            if line.strip() and not KNOWN_SECTION.match(line):
+                if count >= keep:
+                    break
+                count += 1
+            out.append(line)
+        return "\n".join(out).strip()
     kept: list[list[str]] = []
     used = 0
     for sec, n in zip(sections, sung, strict=True):

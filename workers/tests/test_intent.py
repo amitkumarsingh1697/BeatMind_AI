@@ -88,3 +88,9 @@ def test_ritual_words_count_as_devotional():
     # Seen on the Mac for the wedding request: "Ram aaye", "darshan karke".
     lyrics = "[Verse]\nBachpan se aayi Ram aaye\ndarshan karke\nchalo chalein\nshubhkaamna hai"
     assert any("devotional" in p for p in intent.problems(lyrics, "", PROMPT, "hi", []))
+
+
+def test_lyrics_without_sections_are_cut_by_lines():
+    # Seen on the Mac: 50 lines with no section tags, written for 241 s and sung in 120 s.
+    lyrics = "\n".join(f"line {i}" for i in range(50))
+    assert len(intent.fit(lyrics, 241, 120).splitlines()) == 24
