@@ -2,7 +2,15 @@ from beatmind_workers import intent
 
 PROMPT = "Hindi romantic song for the wedding first night, Bhojpuri music vibe with orchestra, duet"
 ROMANTIC = "[Verse 1]\nतेरी आँखों में सपने हैं\nदिल की धड़कन तेरे नाम\n[Chorus]\nसाजन मेरे पास आ\nसात जनम का वादा"
-ROMANTIC_LATIN = "[Verse 1]\nteri aankhon mein sapne hain\ndil ki dhadkan tere naam\nsaajan mere paas aa\nsaat janam ka vaada"
+ROMANTIC_LATIN = "\n".join(
+    [
+        "[Verse 1]",
+        "teri aankhon mein sapne hain",
+        "dil ki dhadkan tere naam",
+        "saajan mere paas aa",
+        "saat janam ka vaada",
+    ]
+)
 
 
 def test_a_plan_that_fits_has_no_problems():
